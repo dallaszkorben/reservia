@@ -5,6 +5,7 @@ from pathlib import Path
 from flask import Flask
 from .views.info_bp import InfoBlueprintManager
 from .views.home_bp import HomeBlueprintManager
+from .views.admin_bp import AdminBlueprintManager
 from .database import Database
 
 class ReserviaApp:
@@ -58,6 +59,8 @@ class ReserviaApp:
         """Register all application blueprints"""
         home_manager = HomeBlueprintManager()
         info_manager = InfoBlueprintManager()
+        admin_manager = AdminBlueprintManager()
 
         self.app.register_blueprint(home_manager.get_blueprint())
         self.app.register_blueprint(info_manager.get_blueprint())
+        self.app.register_blueprint(admin_manager.get_blueprint())

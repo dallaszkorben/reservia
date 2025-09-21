@@ -95,6 +95,7 @@ python app.py
 - **GET /** - Main application page
 - **GET /info/is_alive** - Health check endpoint
 - **GET /info/get_version** - Application version information
+- **POST /admin/user/add** - Add new user (requires JSON payload)
 
 ### Database Management
 - SQLite database with SQLAlchemy ORM
@@ -141,6 +142,15 @@ curl http://localhost:5000/info/get_version
 Expected response:
 ```json
 {"version": "1.0.0"}
+```
+
+#### Add User (Admin)
+```bash
+curl --header "Content-Type: application/json" --request POST --data '{"name": "John Doe", "email": "john@example.com"}' http://localhost:5000/admin/user/add
+```
+Expected response:
+```json
+{"message": "User created successfully", "user_id": 1}
 ```
 
 ## Features In Development
