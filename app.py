@@ -1,4 +1,4 @@
-from backend.app import create_app
+from backend.app.application import ReserviaApp
 
 config_dict = {
     'app_name': 'reservia',
@@ -13,7 +13,9 @@ config_dict = {
     }
 }
 
-app = create_app(config_dict)
+# Create application instance - Apache will use this 'app' variable
+reservia_app = ReserviaApp(config_dict)
+app = reservia_app.create_app()
 
 if __name__ == '__main__':
     app.run(debug=True)

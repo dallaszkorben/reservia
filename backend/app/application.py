@@ -5,6 +5,7 @@ from pathlib import Path
 from flask import Flask
 from .views.info_bp import InfoBlueprintManager
 from .views.home_bp import HomeBlueprintManager
+from .database import Database
 
 class ReserviaApp:
     """Main application class for Reservia"""
@@ -17,12 +18,13 @@ class ReserviaApp:
         """Factory method to create Flask application"""
         self._configure_logging()
 
+        self.database = Database.get_instance(self.config_dict)
+
         self.app = Flask(__name__,
                         template_folder='../../frontend/templates',
                         static_folder='../../frontend/static')
 
-        if self.config_dict:
-            self.app.config['APP_CONFIG'] = self.config_dict
+        self.app.config['APP_CONFIG'] = self.config_dict
 
         self._register_blueprints()
         return self.app
