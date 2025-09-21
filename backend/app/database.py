@@ -79,3 +79,15 @@ class Database:
         users = self.session.query(User).all()
         logging.info(f"{LOG_PREFIX_DATABASE}Retrieved {len(users)} users")
         return users
+
+    def create_resource(self, name, comment=None):
+        resource = Resource(name=name, comment=comment)
+        self.session.add(resource)
+        self.session.commit()
+        logging.info(f"{LOG_PREFIX_DATABASE}Resource created: {name}")
+        return resource
+
+    def get_resources(self):
+        resources = self.session.query(Resource).all()
+        logging.info(f"{LOG_PREFIX_DATABASE}Retrieved {len(resources)} resources")
+        return resources
