@@ -95,7 +95,10 @@ python app.py
 - **GET /** - Main application page
 - **GET /info/is_alive** - Health check endpoint
 - **GET /info/get_version** - Application version information
-- **POST /admin/user/add** - Add new user (requires JSON payload)
+- **POST /session/login** - User login (requires JSON payload)
+- **POST /session/logout** - User logout
+- **POST /admin/user/add** - Add new user (requires admin login and JSON payload)
+- **POST /admin/resource/add** - Add new resource (requires admin login and JSON payload)
 
 ### Database Management
 - SQLite database with SQLAlchemy ORM
@@ -144,14 +147,49 @@ Expected response:
 {"version": "1.0.0"}
 ```
 
-#### Add User (Admin)
+#### User Login (Save Session Cookie)
 ```bash
-curl --header "Content-Type: application/json" --request POST --data '{"name": "John Doe", "email": "john@example.com"}' http://localhost:5000/admin/user/add
+curl -H "Content-Type: application/json" -X POST -c cookies.txt -d '{"name": "admin", "password": "admin"}' http://localhost:5000/session/login
 ```
 Expected response:
 ```json
-{"message": "User created successfully", "user_id": 1}
+{"message": "Login successful", "user_name": "admin"}
 ```
+**Note**: The `-c cookies.txt` saves the session cookie to a file for subsequent requests.
+
+#### User Logout (Use Session Cookie)
+```bash
+curl -X POST -b cookies.txt http://localhost:5000/session/logout
+```
+Expected response:
+```json
+{"message": "Logout successful"}
+```
+
+#### Add User (Admin Only - Requires Session Cookie)
+```bash
+curl -H "Content-Type: application/json" -X POST -b cookies.txt -d '{"name": "John Doe", "email": "john@example.com", "password": "password123"}' http://localhost:5000/admin/user/add
+```
+Expected response:
+```json
+{"message": "User created successfully", "user_id": 2}
+```
+
+#### Add Resource (Admin Only - Requires Session Cookie)
+```bash
+curl -H "Content-Type: application/json" -X POST -b cookies.txt -d '{"name": "Meeting Room", "comment": "Conference room for 10 people"}' http://localhost:5000/admin/resource/add
+```
+Expected response:
+```json
+{"message": "Resource created successfully", "resource_id": 1}
+```
+
+### Session Management Workflow
+1. **Login**: Use `-c cookies.txt` to save session cookie
+2. **Authenticated requests**: Use `-b cookies.txt` to send session cookie
+3. **Logout**: Use `-b cookies.txt -c cookies.txt` to properly clear session cookie
+
+**Note**: The logout endpoint properly invalidates the session cookie. After logout, subsequent requests to admin endpoints will fail with authentication errors.
 
 ## Features In Development
 - Resource management endpoints

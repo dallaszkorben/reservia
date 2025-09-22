@@ -53,10 +53,24 @@ reservia/
 - Test framework for database operations
 - Apache-ready WSGI configuration
 
+✅ **Phase 3 Complete**: Authentication & Session Management
+- User login/logout with secure password hashing (SHA256)
+- Flask session management with proper cookie handling
+- Session validation for admin endpoints
+- Proper session invalidation on logout (cookie expiration)
+- Admin-only user and resource creation endpoints
+- Default admin user creation (admin/admin)
+
 ## Implemented Features
 - `/info/is_alive` - Health check endpoint
 - `/info/get_version` - Version information endpoint
+- `/session/login` - User authentication with session creation
+- `/session/logout` - Session termination with cookie invalidation
+- `/admin/user/add` - Admin-only user creation
+- `/admin/resource/add` - Admin-only resource creation
 - Database singleton with ORM protection against SQL injection
+- Secure password hashing and validation
+- Flask session management with proper logout handling
 - Rotating log files in user home directory (~/.reservia/)
 - Configuration-driven logging levels and file management
 

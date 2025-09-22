@@ -1,0 +1,96 @@
+# Import system modules for path manipulation
+import sys
+import os
+from pathlib import Path
+
+# Add parent directory to Python path so we can import our backend modules
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+# Import our application classes
+from backend.app.database import Database
+from backend.app.application import ReserviaApp
+
+# Test configuration constants - isolated from production
+TEST_DIR_NAME = '.reservia_test_session'  # Separate test directory
+TEST_APP_NAME = 'reservia_test_session'   # Test app name
+TEST_DB_NAME = 'test_session.db'          # Test database file
+
+def cleanup_test_databases():
+    """Clean up test database files and reset singleton"""
+    # Get user's home directory
+    HOME = str(Path.home())
+    test_path = os.path.join(HOME, TEST_DIR_NAME)
+
+    # Remove entire test directory if it exists
+    if os.path.exists(test_path):
+        import shutil
+        shutil.rmtree(test_path)  # Recursively delete directory and contents
+
+    # CRITICAL: Reset the Database singleton instance
+    # This ensures each test starts with a fresh database connection
+    Database._instance = None
+
+def test_db_session_login_logout():
+    # Start with clean slate - remove any existing test data
+    cleanup_test_databases()
+
+    # Configuration dictionary for test Flask app
+    config_dict = {
+        'app_name': TEST_APP_NAME,
+        'version': '1.0.0',
+        'log': {'log_name': 'test.log', 'level': 'DEBUG', 'backupCount': 1},
+        'database': {'name': TEST_DB_NAME},
+    }
+
+    # Create Flask app instance with session support
+    app = ReserviaApp(config_dict)
+
+    # CRITICAL: Flask sessions only work within request context
+    # test_request_context() simulates an HTTP request environment
+    with app.test_request_context():
+
+        # Get database singleton instance
+        db = Database.get_instance()
+
+        # Test initial state - user should not be logged in
+        assert not db.is_logged_in()           # Should return False initially
+        assert db.get_current_user() is None   # No user data in session
+
+        # Test successful login with default admin credentials
+        # Database creates admin user automatically if it doesn't exist
+        user = db.login("admin", "admin")
+        assert user is not None                # Login should return User object
+        assert user.name == "admin"            # Verify user properties
+        assert user.email == "admin@admin.se"
+
+        # Test session state after successful login
+        assert db.is_logged_in()               # Should now return True
+        current_user = db.get_current_user()   # Should return user data from session
+        assert current_user is not None
+        assert current_user['user_name'] == "admin"     # Session stores user data as dict
+        assert current_user['user_email'] == "admin@admin.se"
+
+        # Test logout functionality
+        logout_result = db.logout()
+        assert logout_result is True           # Logout should succeed
+
+        # Test session state after logout
+        assert not db.is_logged_in()           # Should be False again
+        assert db.get_current_user() is None   # Session should be cleared
+
+    # Test in NEW request context - simulates different HTTP request
+    # Sessions don't persist between different request contexts in tests
+    with app.test_request_context():
+        # Try to logout when no one is logged in
+        logout_result = db.logout()
+        assert logout_result is False          # Should return False (nothing to logout)
+
+        # Test failed login with wrong password
+        user = db.login("admin", "wrongpassword")
+        assert user is None                    # Should return None for failed login
+        assert not db.is_logged_in()           # Should remain not logged in
+
+    print("Database session login/logout tests passed!")
+
+if __name__ == "__main__":
+    test_db_session_login_logout()

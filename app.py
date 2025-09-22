@@ -15,7 +15,7 @@ config_dict = {
 
 # Create application instance - Apache will use this 'app' variable
 reservia_app = ReserviaApp(config_dict)
-app = reservia_app.create_app()
+
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    reservia_app.run(host='0.0.0.0', port=5000, debug=True)

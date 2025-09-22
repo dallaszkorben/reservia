@@ -41,7 +41,7 @@ def test_admin_user_add():
     with app.test_client() as client:
         # Test admin user add endpoint
         response = client.post('/admin/user/add',
-                             data=json.dumps({'name': 'Test User', 'email': 'test@example.com'}),
+                             data=json.dumps({'name': 'Test User', 'email': 'test@example.com', 'password': 'testpass123'}),
                              content_type='application/json')
 
         assert response.status_code == 201
