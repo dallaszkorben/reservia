@@ -1,6 +1,9 @@
 import sys
 import os
 import json
+import shutil
+import logging
+import time
 from pathlib import Path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
@@ -8,21 +11,33 @@ from backend.app.database import Database
 from backend.app.application import ReserviaApp
 
 # Test configuration constants
+HOME = str(Path.home())
 TEST_DIR_NAME = '.reservia_test_admin'
 TEST_APP_NAME = 'reservia_test_admin'
 TEST_DB_NAME = 'test_admin.db'
 
 def cleanup_test_databases():
     """Clean up test database files and reset singleton"""
-    HOME = str(Path.home())
-    test_path = os.path.join(HOME, TEST_DIR_NAME)
+    # Close database connection if exists
+    if Database._instance is not None:
+        Database._instance.session.close()
+        Database._instance.engine.dispose()
 
-    if os.path.exists(test_path):
-        import shutil
-        shutil.rmtree(test_path)
+    # Close all logging handlers to release file locks
+    for handler in logging.root.handlers[:]:
+        handler.close()
+        logging.root.removeHandler(handler)
 
     # Reset singleton
     Database._instance = None
+
+    # Small delay to ensure all resources are released
+    time.sleep(0.1)
+
+    test_path = os.path.join(HOME, TEST_DIR_NAME)
+
+    if os.path.exists(test_path):
+        shutil.rmtree(test_path)
 
 def test_admin_user_add():
     cleanup_test_databases()
@@ -35,10 +50,15 @@ def test_admin_user_add():
     }
 
     # Create test app
-    reservia_app = ReserviaApp(config_dict)
-    app = reservia_app.create_app()
+    app = ReserviaApp(config_dict)
 
     with app.test_client() as client:
+        # First login as admin
+        login_response = client.post('/session/login',
+                                   data=json.dumps({'name': 'admin', 'password': 'admin'}),
+                                   content_type='application/json')
+        assert login_response.status_code == 200
+
         # Test admin user add endpoint
         response = client.post('/admin/user/add',
                              data=json.dumps({'name': 'Test User', 'email': 'test@example.com', 'password': 'testpass123'}),
@@ -70,10 +90,15 @@ def test_admin_resource_add():
         'database': {'name': TEST_DB_NAME}
     }
 
-    reservia_app = ReserviaApp(config_dict)
-    app = reservia_app.create_app()
+    app = ReserviaApp(config_dict)
 
     with app.test_client() as client:
+        # First login as admin
+        login_response = client.post('/session/login',
+                                   data=json.dumps({'name': 'admin', 'password': 'admin'}),
+                                   content_type='application/json')
+        assert login_response.status_code == 200
+
         # Test resource add with comment
         response = client.post('/admin/resource/add',
                              data=json.dumps({'name': 'Meeting Room', 'comment': 'Conference room'}),

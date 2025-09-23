@@ -1,5 +1,8 @@
 import sys
 import os
+import shutil
+import logging
+import time
 from pathlib import Path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
@@ -7,25 +10,37 @@ from backend.app.database import Database
 from backend.app.application import ReserviaApp
 
 # Test configuration constants
+HOME = str(Path.home())
 TEST_DIR_NAME = '.reservia_test'
 TEST_APP_NAME = 'reservia_test'
 TEST_DB_NAME = 'test_reservia.db'
 
 def cleanup_test_databases():
     """Clean up test database files and reset singleton"""
-    HOME = str(Path.home())
-    test_path = os.path.join(HOME, TEST_DIR_NAME)
+    # Close database connection if exists
+    if Database._instance is not None:
+        Database._instance.session.close()
+        Database._instance.engine.dispose()
 
-    if os.path.exists(test_path):
-        import shutil
-        shutil.rmtree(test_path)
+    # Close all logging handlers to release file locks
+    for handler in logging.root.handlers[:]:
+        handler.close()
+        logging.root.removeHandler(handler)
 
     # Reset singleton
     Database._instance = None
 
+    test_path = os.path.join(HOME, TEST_DIR_NAME)
+
+    if os.path.exists(test_path):
+        shutil.rmtree(test_path)
+
 # === User ===
 
 def test_db_user_add():
+
+    print("=== User add database tests started!")
+
     cleanup_test_databases()
 
     config_dict = {
@@ -38,7 +53,7 @@ def test_db_user_add():
 
     # Create Flask app for session support
     app = ReserviaApp(config_dict)
-    
+
     with app.test_request_context():
         # Test singleton pattern
         db1 = Database.get_instance(config_dict)
@@ -68,6 +83,9 @@ def test_db_user_add():
     print("User add database tests passed!")
 
 def test_db_user_update():
+
+    print("=== User update database tests started!")
+
     cleanup_test_databases()
 
     config_dict = {
@@ -79,7 +97,7 @@ def test_db_user_update():
     }
 
     app = ReserviaApp(config_dict)
-    
+
     with app.test_request_context():
         db = Database.get_instance(config_dict)
 
@@ -113,6 +131,9 @@ def test_db_user_update():
 # === Resource ===
 
 def test_db_resource_add():
+
+    print("=== Resource add database tests started!")
+
     cleanup_test_databases()
 
     config_dict = {
@@ -124,7 +145,7 @@ def test_db_resource_add():
     }
 
     app = ReserviaApp(config_dict)
-    
+
     with app.test_request_context():
         db = Database.get_instance(config_dict)
 

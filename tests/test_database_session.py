@@ -1,6 +1,9 @@
 # Import system modules for path manipulation
 import sys
 import os
+import shutil
+import logging
+import time
 from pathlib import Path
 
 # Add parent directory to Python path so we can import our backend modules
@@ -11,24 +14,36 @@ from backend.app.database import Database
 from backend.app.application import ReserviaApp
 
 # Test configuration constants - isolated from production
+HOME = str(Path.home())
 TEST_DIR_NAME = '.reservia_test_session'  # Separate test directory
 TEST_APP_NAME = 'reservia_test_session'   # Test app name
 TEST_DB_NAME = 'test_session.db'          # Test database file
 
 def cleanup_test_databases():
     """Clean up test database files and reset singleton"""
-    # Get user's home directory
-    HOME = str(Path.home())
-    test_path = os.path.join(HOME, TEST_DIR_NAME)
+    # Close database connection if exists
+    if Database._instance is not None:
+        Database._instance.session.close()
+        Database._instance.engine.dispose()
 
-    # Remove entire test directory if it exists
-    if os.path.exists(test_path):
-        import shutil
-        shutil.rmtree(test_path)  # Recursively delete directory and contents
+    # Close all logging handlers to release file locks
+    for handler in logging.root.handlers[:]:
+        handler.close()
+        logging.root.removeHandler(handler)
 
     # CRITICAL: Reset the Database singleton instance
     # This ensures each test starts with a fresh database connection
     Database._instance = None
+
+    # Small delay to ensure all resources are released
+    time.sleep(0.1)
+
+    # Get user's home directory
+    test_path = os.path.join(HOME, TEST_DIR_NAME)
+
+    # Remove entire test directory if it exists
+    if os.path.exists(test_path):
+        shutil.rmtree(test_path)  # Recursively delete directory and contents
 
 def test_db_session_login_logout():
     # Start with clean slate - remove any existing test data
