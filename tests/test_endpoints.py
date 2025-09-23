@@ -10,6 +10,11 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from backend.app.database import Database
 from backend.app.application import ReserviaApp
 
+# Color constants
+GREEN = '\033[92m'
+RED = '\033[91m'
+RESET = '\033[0m'
+
 # Test configuration constants
 HOME = str(Path.home())
 TEST_DIR_NAME = '.reservia_test_admin'
@@ -40,6 +45,8 @@ def cleanup_test_databases():
         shutil.rmtree(test_path)
 
 def test_admin_user_add():
+    print("=== Admin user add endpoint tests started!")
+    
     cleanup_test_databases()
 
     config_dict = {
@@ -53,13 +60,15 @@ def test_admin_user_add():
     app = ReserviaApp(config_dict)
 
     with app.test_client() as client:
-        # First login as admin
+        print("\nTesting admin login...")
+        print("  Logging in as admin...")
         login_response = client.post('/session/login',
                                    data=json.dumps({'name': 'admin', 'password': 'admin'}),
                                    content_type='application/json')
         assert login_response.status_code == 200
 
-        # Test admin user add endpoint
+        print("\nTesting successful user creation...")
+        print("  Creating user with all required fields...")
         response = client.post('/admin/user/add',
                              data=json.dumps({'name': 'Test User', 'email': 'test@example.com', 'password': 'testpass123'}),
                              content_type='application/json')
@@ -69,7 +78,8 @@ def test_admin_user_add():
         assert data['message'] == 'User created successfully'
         assert 'user_id' in data
 
-        # Test missing fields
+        print("\nTesting user creation with missing fields...")
+        print("  Attempting to create user without required fields...")
         response = client.post('/admin/user/add',
                              data=json.dumps({'name': 'Test User'}),
                              content_type='application/json')
@@ -78,9 +88,11 @@ def test_admin_user_add():
         data = json.loads(response.data)
         assert 'error' in data
 
-    print("Admin user add tests passed!")
+    print(f"{GREEN}Admin user add tests passed!{RESET}")
 
 def test_admin_resource_add():
+    print("=== Admin resource add endpoint tests started!")
+    
     cleanup_test_databases()
 
     config_dict = {
@@ -93,13 +105,15 @@ def test_admin_resource_add():
     app = ReserviaApp(config_dict)
 
     with app.test_client() as client:
-        # First login as admin
+        print("\nTesting admin login...")
+        print("  Logging in as admin...")
         login_response = client.post('/session/login',
                                    data=json.dumps({'name': 'admin', 'password': 'admin'}),
                                    content_type='application/json')
         assert login_response.status_code == 200
 
-        # Test resource add with comment
+        print("\nTesting resource creation with comment...")
+        print("  Creating resource with name and comment...")
         response = client.post('/admin/resource/add',
                              data=json.dumps({'name': 'Meeting Room', 'comment': 'Conference room'}),
                              content_type='application/json')
@@ -109,7 +123,8 @@ def test_admin_resource_add():
         assert data['message'] == 'Resource created successfully'
         assert 'resource_id' in data
 
-        # Test resource add without comment
+        print("\nTesting resource creation without comment...")
+        print("  Creating resource with name only...")
         response = client.post('/admin/resource/add',
                              data=json.dumps({'name': 'Projector'}),
                              content_type='application/json')
@@ -118,7 +133,8 @@ def test_admin_resource_add():
         data = json.loads(response.data)
         assert data['message'] == 'Resource created successfully'
 
-        # Test missing name field
+        print("\nTesting resource creation with missing name...")
+        print("  Attempting to create resource without name field...")
         response = client.post('/admin/resource/add',
                              data=json.dumps({'comment': 'No name provided'}),
                              content_type='application/json')
@@ -127,8 +143,12 @@ def test_admin_resource_add():
         data = json.loads(response.data)
         assert 'error' in data
 
-    print("Admin resource add tests passed!")
+    print(f"{GREEN}Admin resource add tests passed!{RESET}")
 
 if __name__ == "__main__":
-    test_admin_user_add()
-    test_admin_resource_add()
+    try:
+        test_admin_user_add()
+        test_admin_resource_add()
+    except Exception as e:
+        print(f"{RED}Tests failed: {e}{RESET}")
+        raise

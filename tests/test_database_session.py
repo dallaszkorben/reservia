@@ -13,6 +13,11 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from backend.app.database import Database
 from backend.app.application import ReserviaApp
 
+# Color constants
+GREEN = '\033[92m'
+RED = '\033[91m'
+RESET = '\033[0m'
+
 # Test configuration constants - isolated from production
 HOME = str(Path.home())
 TEST_DIR_NAME = '.reservia_test_session'  # Separate test directory
@@ -46,6 +51,8 @@ def cleanup_test_databases():
         shutil.rmtree(test_path)  # Recursively delete directory and contents
 
 def test_db_session_login_logout():
+    print("=== Database session login/logout tests started!")
+    
     # Start with clean slate - remove any existing test data
     cleanup_test_databases()
 
@@ -64,48 +71,54 @@ def test_db_session_login_logout():
     # test_request_context() simulates an HTTP request environment
     with app.test_request_context():
 
-        # Get database singleton instance
+        print("\nTesting initial session state...")
+        print("  Getting database singleton instance...")
         db = Database.get_instance()
 
-        # Test initial state - user should not be logged in
+        print("  Verifying no user is logged in initially...")
         assert not db.is_logged_in()           # Should return False initially
         assert db.get_current_user() is None   # No user data in session
 
-        # Test successful login with default admin credentials
-        # Database creates admin user automatically if it doesn't exist
+        print("\nTesting successful admin login...")
+        print("  Attempting login with admin credentials...")
         user = db.login("admin", "admin")
         assert user is not None                # Login should return User object
         assert user.name == "admin"            # Verify user properties
         assert user.email == "admin@admin.se"
 
-        # Test session state after successful login
+        print("  Verifying session state after login...")
         assert db.is_logged_in()               # Should now return True
         current_user = db.get_current_user()   # Should return user data from session
         assert current_user is not None
         assert current_user['user_name'] == "admin"     # Session stores user data as dict
         assert current_user['user_email'] == "admin@admin.se"
 
-        # Test logout functionality
+        print("\nTesting logout functionality...")
+        print("  Attempting to logout...")
         logout_result = db.logout()
         assert logout_result is True           # Logout should succeed
 
-        # Test session state after logout
+        print("  Verifying session state after logout...")
         assert not db.is_logged_in()           # Should be False again
         assert db.get_current_user() is None   # Session should be cleared
 
-    # Test in NEW request context - simulates different HTTP request
-    # Sessions don't persist between different request contexts in tests
+    print("\nTesting logout when not logged in...")
     with app.test_request_context():
-        # Try to logout when no one is logged in
+        print("  Attempting logout with no active session...")
         logout_result = db.logout()
         assert logout_result is False          # Should return False (nothing to logout)
 
-        # Test failed login with wrong password
+        print("\nTesting failed login...")
+        print("  Attempting login with wrong password...")
         user = db.login("admin", "wrongpassword")
         assert user is None                    # Should return None for failed login
         assert not db.is_logged_in()           # Should remain not logged in
 
-    print("Database session login/logout tests passed!")
+    print(f"{GREEN}Database session login/logout tests passed!{RESET}")
 
 if __name__ == "__main__":
-    test_db_session_login_logout()
+    try:
+        test_db_session_login_logout()
+    except Exception as e:
+        print(f"{RED}Tests failed: {e}{RESET}")
+        raise

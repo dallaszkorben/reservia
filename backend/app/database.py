@@ -2,12 +2,12 @@ import os
 import logging
 import hashlib
 import threading
-from datetime import datetime
 from pathlib import Path
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from .constants import LOG_PREFIX_DATABASE
+from .utils import get_current_epoch, epoch_to_iso8601
 from flask import session
 
 Base = declarative_base()
@@ -226,3 +226,74 @@ class Database:
             resources = self.session.query(Resource).all()
             logging.info(f"{LOG_PREFIX_DATABASE}Retrieved {len(resources)} resources")
             return resources
+
+    # === Request ===
+
+    def create_request_for_resource(self, resource_id):
+        # Only logged-in users can send requests
+        current_user = self.get_current_user()
+        if not current_user:
+            logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized request attempt - user not logged in")
+            return None
+
+        with self.lock:
+            user_id = current_user['user_id']
+            
+            # Verify resource exists
+            resource = self.session.query(Resource).filter(Resource.id == resource_id).first()
+            if not resource:
+                logging.error(f"{LOG_PREFIX_DATABASE}Resource with ID {resource_id} not found")
+                return None
+
+            # Create request
+            request_epoch = get_current_epoch()
+            request = Request(
+                user_id=user_id,
+                resource_id=resource_id,
+                request_date=request_epoch
+            )
+            self.session.add(request)
+            self.session.commit()
+
+            request_iso = epoch_to_iso8601(request_epoch)
+            user_name = current_user['user_name']
+            resource_name = resource.name
+            logging.info(f"{LOG_PREFIX_DATABASE}Request created: User {user_id} ({user_name}) requested Resource {resource_id} ({resource_name}) at {request_iso}")
+            return request
+
+    def update_request_for_resource(self, request_id, approved_date=None, cancelled_date=None):
+        with self.lock:
+            # Find the request
+            request = self.session.query(Request).filter(Request.id == request_id).first()
+            if not request:
+                logging.error(f"{LOG_PREFIX_DATABASE}Request with ID {request_id} not found")
+                return None
+
+            # Update fields if provided
+            if approved_date is not None:
+                request.approved_date = approved_date
+            
+            if cancelled_date is not None:
+                request.cancelled_date = cancelled_date
+
+            self.session.commit()
+            
+            # Get user and resource names for logging
+            user = request.user
+            resource = request.resource
+            request_date_iso = epoch_to_iso8601(request.request_date)
+            
+            # Build log message with detailed information
+            log_msg = f"Request {request_id} updated: User {user.id} ({user.name}) for Resource {resource.id} ({resource.name}), requested at {request_date_iso}"
+            
+            if approved_date is not None:
+                approved_iso = epoch_to_iso8601(approved_date)
+                log_msg += f", approved at {approved_iso}"
+            
+            if cancelled_date is not None:
+                cancelled_iso = epoch_to_iso8601(cancelled_date)
+                log_msg += f", cancelled at {cancelled_iso}"
+            
+            logging.info(f"{LOG_PREFIX_DATABASE}{log_msg}")
+            return request
+
