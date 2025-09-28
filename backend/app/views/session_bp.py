@@ -39,11 +39,11 @@ class SessionLogin(BaseView):
 
         try:
             db = Database.get_instance()
-            user = db.login(name, password)
-            if user:
+            success, user, error_code, error_msg = db.login(name, password)
+            if success:
                 return jsonify({"message": "Login successful", "user_name": user.name}), 200
             else:
-                return jsonify({"error": "Invalid credentials"}), 401
+                return jsonify({"error": error_msg}), 401
         except Exception as e:
             logging.error(f"{LOG_PREFIX_ENDPOINT}Error during login: {str(e)}")
             return jsonify({"error": "Login failed"}), 500
@@ -61,8 +61,8 @@ class SessionLogout(BaseView):
 
         try:
             db = Database.get_instance()
-            success = db.logout()
-            response = jsonify({"message": "Logout successful" if success else "No active session"})
+            success, _, error_code, error_msg = db.logout()
+            response = jsonify({"message": "Logout successful" if success else error_msg})
             if success:
                 # Clear the session cookie by setting it to expire
                 response.set_cookie('session', '', expires=0)

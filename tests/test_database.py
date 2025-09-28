@@ -68,16 +68,16 @@ def test_db_user_add():
 
         print("\nTesting user creation without login...")
         print("  Attempting to create user without admin login...")
-        user = db1.create_user("John Doe", "john@example.com", "password123")
-        assert user is None, "Should not create user without admin login"
+        success, user, error_code, _ = db1.create_user("John Doe", "john@example.com", "password123")
+        assert not success and user is None and error_code == "UNAUTHORIZED"
 
         print("\nTesting admin login and user creation...")
         print("  Logging in as admin...")
-        admin_user = db1.login("admin", "admin")
+        _, admin_user, _, _ = db1.login("admin", "admin")
         assert admin_user is not None
 
         print("  Creating user as admin...")
-        user = db1.create_user("John Doe", "john@example.com", "password123")
+        _, user, _, _ = db1.create_user("John Doe", "john@example.com", "password123")
         assert user.name == "John Doe"
         assert user.email == "john@example.com"
         assert user.id is not None
@@ -117,7 +117,7 @@ def test_db_user_update():
 
         print("\nTesting user update with admin login...")
         print("  Logging in as admin...")
-        admin_user = db.login("admin", "admin")
+        _, admin_user, _, _ = db.login("admin", "admin")
         assert admin_user is not None
 
         print("  Updating email only...")
@@ -162,40 +162,88 @@ def test_db_resource_add():
 
         print("\nTesting resource creation without login...")
         print("  Attempting to create resource without admin login...")
-        resource = db.create_resource("Meeting Room", "Conference room for 10 people")
-        assert resource is None, "Should not create resource without admin login"
+        success, resource, error_code, _ = db.create_resource("Meeting Room", "Conference room for 10 people")
+        assert not success and resource is None and error_code == "UNAUTHORIZED"
 
         print("\nTesting resource creation with admin login...")
         print("  Logging in as admin...")
-        admin_user = db.login("admin", "admin")
+        _, admin_user, _, _ = db.login("admin", "admin")
         assert admin_user is not None
 
         print("  Creating resource with comment...")
-        resource1 = db.create_resource("Meeting Room", "Conference room for 10 people")
+        _, resource1, _, _ = db.create_resource("Meeting Room", "Conference room for 10 people")
         assert resource1.name == "Meeting Room"
         assert resource1.comment == "Conference room for 10 people"
         assert resource1.id is not None
 
         print("  Creating resource without comment...")
-        resource2 = db.create_resource("Projector")
+        _, resource2, _, _ = db.create_resource("Projector")
         assert resource2.name == "Projector"
         assert resource2.comment is None
         assert resource2.id is not None
 
         print("\nTesting resource retrieval...")
         print("  Getting all resources from database...")
-        resources = db.get_resources()
+        _, resources, _, _ = db.get_resources()
         assert len(resources) == 2
         assert any(r.name == "Meeting Room" for r in resources)
         assert any(r.name == "Projector" for r in resources)
 
     print(f"{GREEN}Resource add database tests passed!{RESET}")
 
+
+def test_db_resource_get_all():
+    print("=== Resource get all database tests started!")
+
+    cleanup_test_databases()
+
+    config_dict = {
+        'app_name': TEST_APP_NAME,
+        'version': '1.0.0',
+        'log': {'log_name': 'test.log', 'level': 'DEBUG', 'backupCount': 1},
+        'database': {'name': TEST_DB_NAME},
+        'session': {'secret_key': 'test-secret-key'}
+    }
+
+    app = ReserviaApp(config_dict)
+    operation = 0
+
+    with app.test_request_context():
+        db = Database.get_instance(config_dict)
+
+        operation += 1
+        print(f"\n{operation}. Unauthorized access test")
+        success, resources, error_code, error_msg = db.get_resources()
+        assert not success and resources is None and error_code == "UNAUTHORIZED"
+
+        operation += 1
+        print(f"\n{operation}. Admin login test")
+        _, admin_user, _, _ = db.login("admin", "admin")
+        assert admin_user is not None
+
+        operation += 1
+        print(f"\n{operation}. Create test resources")
+        _, resource1, _, _ = db.create_resource("Meeting Room A", "Conference room")
+        _, resource2, _, _ = db.create_resource("Projector", "HD projector")
+        _, resource3, _, _ = db.create_resource("Whiteboard")
+        assert resource1 is not None and resource2 is not None and resource3 is not None
+
+        operation += 1
+        print(f"\n{operation}. Get all resources test")
+        success, resources, error_code, error_msg = db.get_resources()
+        assert success and resources is not None and error_code is None
+        assert len(resources) == 3
+        assert any(r.name == "Meeting Room A" for r in resources)
+        assert any(r.name == "Projector" for r in resources)
+        assert any(r.name == "Whiteboard" for r in resources)
+
+    print(f"{GREEN}Resource get all database tests passed!{RESET}")
+
 # === Login ===
 
 def test_db_login():
     print("=== Database login tests started!")
-    
+
     cleanup_test_databases()
 
     config_dict = {
@@ -212,26 +260,26 @@ def test_db_login():
 
         print("\nTesting login with default admin user...")
         print("  Attempting admin login...")
-        admin_user = db.login("admin", "admin")
+        _, admin_user, _, _ = db.login("admin", "admin")
         assert admin_user is not None
         assert admin_user.name == "admin"
         assert admin_user.email == "admin@admin.se"
 
         print("\nTesting login with wrong password...")
         print("  Attempting login with incorrect password...")
-        result = db.login("admin", "wrongpassword")
-        assert result is None
+        success, result, error_code, _ = db.login("admin", "wrongpassword")
+        assert not success and result is None and error_code == "INVALID_PASSWORD"
 
         print("\nTesting login with non-existent user...")
         print("  Attempting login with non-existent user...")
-        result = db.login("nonexistent", "password")
-        assert result is None
+        success, result, error_code, _ = db.login("nonexistent", "password")
+        assert not success and result is None and error_code == "USER_NOT_FOUND"
 
         print("\nTesting login with new user...")
         print("  Creating new test user...")
-        db.create_user("testuser", "test@example.com", "testpass123")
+        _, _, _, _ = db.create_user("testuser", "test@example.com", "testpass123")
         print("  Attempting login with new user...")
-        test_user = db.login("testuser", "testpass123")
+        _, test_user, _, _ = db.login("testuser", "testpass123")
         assert test_user is not None
         assert test_user.name == "testuser"
         assert test_user.email == "test@example.com"
@@ -242,6 +290,7 @@ if __name__ == "__main__":
     try:
         test_db_user_add()
         test_db_resource_add()
+        test_db_resource_get_all()
         test_db_user_update()
         test_db_login()
     except Exception as e:

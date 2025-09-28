@@ -17,7 +17,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     email = Column(String, unique=True, nullable=False)
-    name = Column(String, nullable=False)
+    name = Column(String, unique=True, nullable=False)
 
 class Resource(Base):
     __tablename__ = 'resources'
@@ -101,22 +101,43 @@ class Database:
     # === Session ===
 
     def login(self, name, password):
+        """
+        Authenticate user and create session.
+
+        Args:
+            name (str): Username for authentication. Required.
+            password (str): User password in plain text. Required.
+
+        Returns:
+            tuple: (success, data, error_code, error_message)
+                - success (bool): True if login succeeded, False otherwise
+                - data (User|None): User object on success, None on failure
+                - error_code (str|None): Error code on failure (USER_NOT_FOUND, INVALID_PASSWORD), None on success
+                - error_message (str|None): Human-readable error message on failure, None on success
+
+        Example:
+            success, user, error_code, error_msg = db.login("admin", "password")
+            if success:
+                print(f"Logged in as {user.name}")
+            else:
+                print(f"Login failed: {error_msg}")
+        """
         with self.lock:
             user = self.session.query(User).filter(User.name == name).first()
             if not user:
                 logging.error(f"{LOG_PREFIX_DATABASE}The given user '{name}' to login does not exist")
-                return None
+                return False, None, "USER_NOT_FOUND", f"User '{name}' does not exist"
 
             password_entry = self.session.query(Password).filter(Password.user_id == user.id).first()
             if not password_entry:
                 logging.error(f"{LOG_PREFIX_DATABASE}It should not happen. There was NO password found for the given name '{name} in the database'")
-                return None
+                return False, None, "PASSWORD_NOT_FOUND", "Password entry not found"
 
             encoded_password = hashlib.sha256(password.encode()).hexdigest()
             logging.debug(f"{LOG_PREFIX_DATABASE}Login attempt - stored: {password_entry.password[:10]}..., provided: {encoded_password[:10]}...")
             if password_entry.password != encoded_password:
                 logging.error(f"{LOG_PREFIX_DATABASE}The given password for user '{name}' is incorrect")
-                return None
+                return False, None, "INVALID_PASSWORD", "Invalid credentials"
 
             logging.info(f"{LOG_PREFIX_DATABASE}User '{name}' logged in successfully")
 
@@ -127,7 +148,7 @@ class Database:
             }
             session.permanent = True
 
-            return user
+            return True, user, None, None
 
     def logout(self):
         if 'logged_in_user' in session:
@@ -135,8 +156,8 @@ class Database:
             session.clear()
             session.permanent = False
             logging.info(f"{LOG_PREFIX_DATABASE}User '{user_name}' logged out successfully")
-            return True
-        return False
+            return True, None, None, None
+        return False, None, "NO_SESSION", "No active session to logout"
 
     def is_logged_in(self):
         return 'logged_in_user' in session
@@ -152,24 +173,59 @@ class Database:
     # === Users ===
 
     def create_user(self, name, email, password):
+        """
+        Create a new user account (admin only).
+
+        Args:
+            name (str): Username for the new account. Required.
+            email (str): Email address for the new account. Required.
+            password (str): Password in plain text (will be hashed). Required.
+
+        Returns:
+            tuple: (success, data, error_code, error_message)
+                - success (bool): True if user created, False otherwise
+                - data (User|None): User object on success, None on failure
+                - error_code (str|None): Error code on failure (UNAUTHORIZED), None on success
+                - error_message (str|None): Human-readable error message on failure, None on success
+
+        Example:
+            success, user, error_code, error_msg = db.create_user("john", "john@example.com", "pass123")
+            if success:
+                print(f"Created user {user.name} with ID {user.id}")
+            else:
+                print(f"User creation failed: {error_msg}")
+        """
         # Only admin can create users
         current_user = self.get_current_user()
         if not current_user or current_user['user_name'] != 'admin':
             logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized user creation attempt")
-            return None
+            return False, None, "UNAUTHORIZED", "Admin access required"
 
         with self.lock:
-            user = User(name=name, email=email)
-            self.session.add(user)
-            self.session.flush()
+            try:
+                user = User(name=name, email=email)
+                self.session.add(user)
+                self.session.flush()
 
-            encoded_password = hashlib.sha256(password.encode()).hexdigest()
-            password_entry = Password(user_id=user.id, password=encoded_password)
-            self.session.add(password_entry)
-            self.session.commit()
+                encoded_password = hashlib.sha256(password.encode()).hexdigest()
+                password_entry = Password(user_id=user.id, password=encoded_password)
+                self.session.add(password_entry)
+                self.session.commit()
 
-            logging.info(f"{LOG_PREFIX_DATABASE}User created: {name} ({email})")
-            return user
+                logging.info(f"{LOG_PREFIX_DATABASE}User created: {name} ({email})")
+                return True, user, None, None
+            except Exception as e:
+                self.session.rollback()
+                if "UNIQUE constraint failed: users.email" in str(e):
+                    logging.error(f"{LOG_PREFIX_DATABASE}Email '{email}' already exists")
+                    return False, None, "EMAIL_EXISTS", f"Email '{email}' already exists"
+                elif "UNIQUE constraint failed: users.name" in str(e):
+                    logging.error(f"{LOG_PREFIX_DATABASE}Username '{name}' already exists")
+                    return False, None, "USERNAME_EXISTS", f"Username '{name}' already exists"
+                else:
+                    logging.error(f"{LOG_PREFIX_DATABASE}Error creating user: {str(e)}")
+                    return False, None, "DATABASE_ERROR", "Database error occurred"
+
 
     def update_user(self, email=None, password=None):
 
@@ -209,33 +265,107 @@ class Database:
     # === Resource ===
 
     def create_resource(self, name, comment=None):
+        """
+        Create a new resource for reservation (admin only).
+
+        Args:
+            name (str): Name of the resource. Required.
+            comment (str, optional): Description or comment about the resource. Defaults to None.
+
+        Returns:
+            tuple: (success, data, error_code, error_message)
+                - success (bool): True if resource created, False otherwise
+                - data (Resource|None): Resource object on success, None on failure
+                - error_code (str|None): Error code on failure (UNAUTHORIZED), None on success
+                - error_message (str|None): Human-readable error message on failure, None on success
+
+        Example:
+            success, resource, error_code, error_msg = db.create_resource("Meeting Room A", "10 person capacity")
+            if success:
+                print(f"Created resource {resource.name} with ID {resource.id}")
+            else:
+                print(f"Resource creation failed: {error_msg}")
+        """
         # Only admin can create resources
         current_user = self.get_current_user()
         if not current_user or current_user['user_name'] != 'admin':
             logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized resource creation attempt")
-            return None
+            return False, None, "UNAUTHORIZED", "Admin access required"
 
         with self.lock:
-            resource = Resource(name=name, comment=comment)
-            self.session.add(resource)
-            self.session.commit()
-            logging.info(f"{LOG_PREFIX_DATABASE}Resource created: {name}")
-            return resource
+            try:
+                resource = Resource(name=name, comment=comment)
+                self.session.add(resource)
+                self.session.commit()
+                logging.info(f"{LOG_PREFIX_DATABASE}Resource created: {name}")
+                return True, resource, None, None
+            except Exception as e:
+                self.session.rollback()
+                if "UNIQUE constraint failed: resources.name" in str(e):
+                    logging.error(f"{LOG_PREFIX_DATABASE}Resource name '{name}' already exists")
+                    return False, None, "RESOURCE_EXISTS", f"Resource name '{name}' already exists"
+                else:
+                    logging.error(f"{LOG_PREFIX_DATABASE}Error creating resource: {str(e)}")
+                    return False, None, "DATABASE_ERROR", "Database error occurred"
 
     def get_resources(self):
+        """
+        Retrieve all resources in the system (admin only).
+
+        Returns:
+            tuple: (success, data, error_code, error_message)
+                - success (bool): True if resources retrieved, False otherwise
+                - data (list|None): List of Resource objects on success, None on failure
+                - error_code (str|None): Error code on failure (UNAUTHORIZED), None on success
+                - error_message (str|None): Human-readable error message on failure, None on success
+
+        Example:
+            success, resources, error_code, error_msg = db.get_resources()
+            if success:
+                print(f"Retrieved {len(resources)} resources")
+            else:
+                print(f"Failed to retrieve resources: {error_msg}")
+        """
+        # Only admin can retrieve all resources
+        current_user = self.get_current_user()
+        if not current_user or current_user['user_name'] != 'admin':
+            logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized resource retrieval attempt")
+            return False, None, "UNAUTHORIZED", "Admin access required"
+
         with self.lock:
             resources = self.session.query(Resource).all()
             logging.info(f"{LOG_PREFIX_DATABASE}Retrieved {len(resources)} resources")
-            return resources
+            return True, resources, None, None
 
     # === Request ===
 
     def request_reservation(self, resource_id):
+        """
+        Request a reservation for a resource. Auto-approves if resource is free, otherwise queues the request.
+
+        Args:
+            resource_id (int): ID of the resource to reserve. Required.
+
+        Returns:
+            tuple: (success, data, error_code, error_message)
+                - success (bool): True if reservation created, False otherwise
+                - data (ReservationLifecycle|None): Reservation object on success, None on failure
+                - error_code (str|None): Error code on failure (AUTH_REQUIRED, RESOURCE_NOT_FOUND, DUPLICATE_RESERVATION), None on success
+                - error_message (str|None): Human-readable error message on failure, None on success
+
+        Example:
+            success, reservation, error_code, error_msg = db.request_reservation(1)
+            if success:
+                status = "approved" if reservation.approved_date else "queued"
+                print(f"Reservation {status} with ID {reservation.id}")
+            else:
+                print(f"Reservation failed: {error_msg}")
+        """
         # Only logged-in users can request reservations
         current_user = self.get_current_user()
         if not current_user:
             logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized approve reservation request - user not logged in")
-            return None
+            return False, None, "AUTH_REQUIRED", "User authentication required"
 
         with self.lock:
             user_id = current_user['user_id']
@@ -244,7 +374,7 @@ class Database:
             resource = self.session.query(Resource).filter(Resource.id == resource_id).first()
             if not resource:
                 logging.error(f"{LOG_PREFIX_DATABASE}Resource with ID {resource_id} not found")
-                return None
+                return False, None, "RESOURCE_NOT_FOUND", f"Resource {resource_id} not found"
 
             # Check if user already has reservation on this resource
             existing_reservation = self.session.query(ReservationLifecycle).filter(
@@ -256,7 +386,7 @@ class Database:
 
             if existing_reservation:
                 logging.error(f"{LOG_PREFIX_DATABASE}User {user_id} already has reservation on Resource {resource_id}")
-                return None
+                return False, None, "DUPLICATE_RESERVATION", "User already has active reservation for this resource"
 
             # Create new reservation lifecycle record
             request_epoch = get_current_epoch()
@@ -292,14 +422,34 @@ class Database:
             status = "approved" if is_free else "requested"
             logging.info(f"{LOG_PREFIX_DATABASE}Reservation {status}: User {user_id} ({user_name}) for Resource {resource_id} ({resource_name}) at {request_iso}")
 
-            return reservation
+            return True, reservation, None, None
 
     def cancel_reservation(self, resource_id):
+        """
+        Cancel a queued (not yet approved) reservation for a resource.
+
+        Args:
+            resource_id (int): ID of the resource reservation to cancel. Required.
+
+        Returns:
+            tuple: (success, data, error_code, error_message)
+                - success (bool): True if reservation cancelled, False otherwise
+                - data (ReservationLifecycle|None): Cancelled reservation object on success, None on failure
+                - error_code (str|None): Error code on failure (AUTH_REQUIRED, RESERVATION_NOT_FOUND), None on success
+                - error_message (str|None): Human-readable error message on failure, None on success
+
+        Example:
+            success, reservation, error_code, error_msg = db.cancel_reservation(1)
+            if success:
+                print(f"Cancelled reservation ID {reservation.id}")
+            else:
+                print(f"Cancellation failed: {error_msg}")
+        """
         # Only logged-in users can cancel reservations
         current_user = self.get_current_user()
         if not current_user:
             logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized reservation cancellation - user not logged in")
-            return None
+            return False, None, "AUTH_REQUIRED", "User authentication required"
 
         with self.lock:
             user_id = current_user['user_id']
@@ -316,7 +466,7 @@ class Database:
 
             if not reservation:
                 logging.error(f"{LOG_PREFIX_DATABASE}No active reservation found for User {user_id} on Resource {resource_id}")
-                return None
+                return False, None, "RESERVATION_NOT_FOUND", "No queued reservation found to cancel"
 
             # Cancel the reservation
             cancel_epoch = get_current_epoch()
@@ -329,14 +479,34 @@ class Database:
             resource_name = reservation.resource.name
             logging.info(f"{LOG_PREFIX_DATABASE}Reservation cancelled: User {user_id} ({user_name}) for Resource {resource_id} ({resource_name}) at {cancel_iso}")
 
-            return reservation
+            return True, reservation, None, None
 
     def release_reservation(self, resource_id):
+        """
+        Release an approved reservation, freeing the resource. Auto-approves next queued user if any.
+
+        Args:
+            resource_id (int): ID of the resource reservation to release. Required.
+
+        Returns:
+            tuple: (success, data, error_code, error_message)
+                - success (bool): True if reservation released, False otherwise
+                - data (ReservationLifecycle|None): Released reservation object on success, None on failure
+                - error_code (str|None): Error code on failure (AUTH_REQUIRED, RESERVATION_NOT_FOUND), None on success
+                - error_message (str|None): Human-readable error message on failure, None on success
+
+        Example:
+            success, reservation, error_code, error_msg = db.release_reservation(1)
+            if success:
+                print(f"Released reservation ID {reservation.id}")
+            else:
+                print(f"Release failed: {error_msg}")
+        """
         # Only logged-in users can release reservations
         current_user = self.get_current_user()
         if not current_user:
             logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized reservation release - user not logged in")
-            return None
+            return False, None, "AUTH_REQUIRED", "User authentication required"
 
         with self.lock:
             user_id = current_user['user_id']
@@ -353,7 +523,7 @@ class Database:
 
             if not reservation:
                 logging.error(f"{LOG_PREFIX_DATABASE}No approved reservation found for User {user_id} on Resource {resource_id}")
-                return None
+                return False, None, "RESERVATION_NOT_FOUND", "No approved reservation found to release"
 
             # Release the reservation
             release_epoch = get_current_epoch()
@@ -381,14 +551,30 @@ class Database:
             resource_name = reservation.resource.name
             logging.info(f"{LOG_PREFIX_DATABASE}Reservation released: User {user_id} ({user_name}) for Resource {resource_id} ({resource_name}) at {release_iso}")
 
-            return reservation
+            return True, reservation, None, None
 
-    def get_active_reservations(self):
+    def get_active_reservations(self, resource_id):
+        """
+        Retrieve active reservations (not cancelled or released) for a specific resource ordered by request date.
+
+        Args:
+            resource_id (int): ID of the resource to get active reservations for. Required.
+
+        Returns:
+            list: List of ReservationLifecycle objects representing active reservations for the resource.
+
+        Example:
+            reservations = db.get_active_reservations(1)
+            for r in reservations:
+                status = "approved" if r.approved_date else "queued"
+                print(f"Reservation {r.id}: {r.user.name} -> {r.resource.name} ({status})")
+        """
         with self.lock:
             reservations = self.session.query(ReservationLifecycle).filter(
+                ReservationLifecycle.resource_id == resource_id,
                 ReservationLifecycle.cancelled_date.is_(None),
                 ReservationLifecycle.released_date.is_(None)
             ).order_by(ReservationLifecycle.request_date.asc()).all()
-            logging.info(f"{LOG_PREFIX_DATABASE}Retrieved {len(reservations)} active reservations")
+            logging.info(f"{LOG_PREFIX_DATABASE}Retrieved {len(reservations)} active reservations for Resource {resource_id}")
             return reservations
 

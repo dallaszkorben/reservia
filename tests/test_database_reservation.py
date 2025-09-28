@@ -59,22 +59,22 @@ def test_db_request_reservation_failure():
         # Setup test data
         print("\nSetting up test data...")
         print("  Logging in as admin...")
-        admin_user = db.login("admin", "admin")
-        assert admin_user is not None
+        success, admin_user, _, _ = db.login("admin", "admin")
+        assert success and admin_user is not None
 
         print("  Creating test user...")
-        test_user = db.create_user("testuser", "test@example.com", "testpass123")
-        assert test_user is not None
+        success, test_user, _, _ = db.create_user("testuser", "test@example.com", "testpass123")
+        assert success and test_user is not None
 
         print("  Creating test resource...")
-        resource = db.create_resource("Test Resource", "A test resource for booking")
-        assert resource is not None
+        success, resource, _, _ = db.create_resource("Test Resource", "A test resource for booking")
+        assert success and resource is not None
         resource_id = resource.id
 
         print("  Logging out admin and logging in as test user...")
         db.logout()
-        logged_in_user = db.login("testuser", "testpass123")
-        assert logged_in_user is not None
+        success, logged_in_user, _, _ = db.login("testuser", "testpass123")
+        assert success and logged_in_user is not None
 
         print("  Emptying reservation_lifecycle table...")
         db.session.query(ReservationLifecycle).delete()
@@ -83,8 +83,8 @@ def test_db_request_reservation_failure():
         # Test first request (should succeed)
         print("\nTesting first reservation request...")
         print("  Making first reservation request...")
-        first_reservation = db.request_reservation(resource_id)
-        assert first_reservation is not None
+        success, first_reservation, _, _ = db.request_reservation(resource_id)
+        assert success and first_reservation is not None
         assert first_reservation.user_id == test_user.id
         assert first_reservation.resource_id == resource_id
         assert first_reservation.request_date is not None
@@ -93,8 +93,8 @@ def test_db_request_reservation_failure():
         # Test second request (should fail)
         print("\nTesting duplicate reservation request...")
         print("  Making second reservation request (should fail)...")
-        second_reservation = db.request_reservation(resource_id)
-        assert second_reservation is None
+        success, second_reservation, error_code, _ = db.request_reservation(resource_id)
+        assert not success and second_reservation is None and error_code == "DUPLICATE_RESERVATION"
 
     print(f"{GREEN}Database request reservation failure tests passed!{RESET}\n")
 
@@ -118,22 +118,22 @@ def test_db_cancel_reservation_empty_table():
         # Setup test data
         print("\nSetting up test data...")
         print("  Logging in as admin...")
-        admin_user = db.login("admin", "admin")
-        assert admin_user is not None
+        success, admin_user, _, _ = db.login("admin", "admin")
+        assert success and admin_user is not None
 
         print("  Creating test user...")
-        test_user = db.create_user("testuser", "test@example.com", "testpass123")
-        assert test_user is not None
+        success, test_user, _, _ = db.create_user("testuser", "test@example.com", "testpass123")
+        assert success and test_user is not None
 
         print("  Creating test resource...")
-        resource = db.create_resource("Test Resource", "A test resource for booking")
-        assert resource is not None
+        success, resource, _, _ = db.create_resource("Test Resource", "A test resource for booking")
+        assert success and resource is not None
         resource_id = resource.id
 
         print("  Logging out admin and logging in as test user...")
         db.logout()
-        logged_in_user = db.login("testuser", "testpass123")
-        assert logged_in_user is not None
+        success, logged_in_user, _, _ = db.login("testuser", "testpass123")
+        assert success and logged_in_user is not None
 
         print("  Emptying reservation_lifecycle table...")
         db.session.query(ReservationLifecycle).delete()
@@ -142,8 +142,8 @@ def test_db_cancel_reservation_empty_table():
         # Test cancel on empty table (should fail)
         print("\nTesting cancel reservation on empty table...")
         print("  Attempting to cancel reservation (should fail)...")
-        result = db.cancel_reservation(resource_id)
-        assert result is None
+        success, result, error_code, _ = db.cancel_reservation(resource_id)
+        assert not success and result is None and error_code == "RESERVATION_NOT_FOUND"
 
     print(f"{GREEN}Database cancel reservation on empty table tests passed!{RESET}\n")
 
@@ -167,22 +167,22 @@ def test_db_release_reservation_empty_table():
         # Setup test data
         print("\nSetting up test data...")
         print("  Logging in as admin...")
-        admin_user = db.login("admin", "admin")
-        assert admin_user is not None
+        success, admin_user, _, _ = db.login("admin", "admin")
+        assert success and admin_user is not None
 
         print("  Creating test user...")
-        test_user = db.create_user("testuser", "test@example.com", "testpass123")
-        assert test_user is not None
+        success, test_user, _, _ = db.create_user("testuser", "test@example.com", "testpass123")
+        assert success and test_user is not None
 
         print("  Creating test resource...")
-        resource = db.create_resource("Test Resource", "A test resource for booking")
-        assert resource is not None
+        success, resource, _, _ = db.create_resource("Test Resource", "A test resource for booking")
+        assert success and resource is not None
         resource_id = resource.id
 
         print("  Logging out admin and logging in as test user...")
         db.logout()
-        logged_in_user = db.login("testuser", "testpass123")
-        assert logged_in_user is not None
+        success, logged_in_user, _, _ = db.login("testuser", "testpass123")
+        assert success and logged_in_user is not None
 
         print("  Emptying reservation_lifecycle table...")
         db.session.query(ReservationLifecycle).delete()
@@ -191,8 +191,8 @@ def test_db_release_reservation_empty_table():
         # Test release on empty table (should fail)
         print("\nTesting release reservation on empty table...")
         print("  Attempting to release reservation (should fail)...")
-        result = db.release_reservation(resource_id)
-        assert result is None
+        success, result, error_code, _ = db.release_reservation(resource_id)
+        assert not success and result is None and error_code == "RESERVATION_NOT_FOUND"
 
     print(f"{GREEN}Database release reservation on empty table tests passed!{RESET}\n")
 
@@ -218,14 +218,14 @@ def test_db_reservation_lifecycle_workflow_1():
         db.session.query(ReservationLifecycle).delete()
         db.session.commit()
 
-        admin_user = db.login("admin", "admin")
-        resource1 = db.create_resource("Resource1", "Test resource 1")
+        _, admin_user, _, _ = db.login("admin", "admin")
+        _, resource1, _, _ = db.create_resource("Resource1", "Test resource 1")
         resource1_id = resource1.id
 
-        user1 = db.create_user("user1", "user1@example.com", "pass1")
-        user2 = db.create_user("user2", "user2@example.com", "pass2")
-        user3 = db.create_user("user3", "user3@example.com", "pass3")
-        user4 = db.create_user("user4", "user4@example.com", "pass4")
+        _, user1, _, _ = db.create_user("user1", "user1@example.com", "pass1")
+        _, user2, _, _ = db.create_user("user2", "user2@example.com", "pass2")
+        _, user3, _, _ = db.create_user("user3", "user3@example.com", "pass3")
+        _, user4, _, _ = db.create_user("user4", "user4@example.com", "pass4")
 
         operation += 1
 
@@ -233,8 +233,8 @@ def test_db_reservation_lifecycle_workflow_1():
         # 1. User1 requests reservation
         # -----------------------------
         db.logout()
-        db.login("user1", "pass1")
-        result=db.request_reservation(resource1_id)
+        _, _, _, _ = db.login("user1", "pass1")
+        _, result, _, _ = db.request_reservation(resource1_id)
 
         records = db.session.query(ReservationLifecycle).order_by(ReservationLifecycle.request_date).all()
         print(f"{operation}. After user1 reservation:")
@@ -255,8 +255,8 @@ def test_db_reservation_lifecycle_workflow_1():
         # 2. User4 requests reservation
         # -----------------------------
         db.logout()
-        db.login("user4", "pass4")
-        result=db.request_reservation(resource1_id)
+        _, _, _, _ = db.login("user4", "pass4")
+        _, result, _, _ = db.request_reservation(resource1_id)
 
         records = db.session.query(ReservationLifecycle).order_by(ReservationLifecycle.request_date).all()
         print(f"{operation}. After user4 reservation:")
@@ -282,8 +282,8 @@ def test_db_reservation_lifecycle_workflow_1():
         # 3. User2 requests reservation
         # -----------------------------
         db.logout()
-        db.login("user2", "pass2")
-        result=db.request_reservation(resource1_id)
+        _, _, _, _ = db.login("user2", "pass2")
+        _, result, _, _ = db.request_reservation(resource1_id)
 
         records = db.session.query(ReservationLifecycle).order_by(ReservationLifecycle.request_date).all()
         print(f"{operation}. After user2 reservation:")
@@ -313,7 +313,7 @@ def test_db_reservation_lifecycle_workflow_1():
         # ----------------------------
         # 4. User2 cancels reservation
         # ----------------------------
-        db.cancel_reservation(resource1_id)
+        _, _, _, _ = db.cancel_reservation(resource1_id)
 
         records = db.session.query(ReservationLifecycle).order_by(ReservationLifecycle.request_date).all()
         print(f"{operation}. After user2 cancel:")
@@ -344,8 +344,8 @@ def test_db_reservation_lifecycle_workflow_1():
         # 5. User3 requests reservation
         # -----------------------------
         db.logout()
-        db.login("user3", "pass3")
-        result=db.request_reservation(resource1_id)
+        _, _, _, _ = db.login("user3", "pass3")
+        _, result, _, _ = db.request_reservation(resource1_id)
 
         records = db.session.query(ReservationLifecycle).order_by(ReservationLifecycle.request_date).all()
         print(f"{operation}. After user3 reservation:")
@@ -381,8 +381,8 @@ def test_db_reservation_lifecycle_workflow_1():
         # 6. User1 releases reservation
         # -----------------------------
         db.logout()
-        db.login("user1", "pass1")
-        db.release_reservation(resource1_id)
+        _, _, _, _ = db.login("user1", "pass1")
+        _, _, _, _ = db.release_reservation(resource1_id)
 
         records = db.session.query(ReservationLifecycle).order_by(ReservationLifecycle.request_date).all()
         print(f"{operation}. After user1 release:")
@@ -435,14 +435,14 @@ def test_db_reservation_lifecycle_workflow_2():
         db.session.query(ReservationLifecycle).delete()
         db.session.commit()
 
-        admin_user = db.login("admin", "admin")
-        resource1 = db.create_resource("Resource1", "Test resource 1")
+        _, admin_user, _, _ = db.login("admin", "admin")
+        _, resource1, _, _ = db.create_resource("Resource1", "Test resource 1")
         resource1_id = resource1.id
 
-        user1 = db.create_user("user1", "user1@example.com", "pass1")
-        user2 = db.create_user("user2", "user2@example.com", "pass2")
-        user3 = db.create_user("user3", "user3@example.com", "pass3")
-        user4 = db.create_user("user4", "user4@example.com", "pass4")
+        _, user1, _, _ = db.create_user("user1", "user1@example.com", "pass1")
+        _, user2, _, _ = db.create_user("user2", "user2@example.com", "pass2")
+        _, user3, _, _ = db.create_user("user3", "user3@example.com", "pass3")
+        _, user4, _, _ = db.create_user("user4", "user4@example.com", "pass4")
 
         operation += 1
 
@@ -450,8 +450,8 @@ def test_db_reservation_lifecycle_workflow_2():
         # 1. User1 requests reservation
         # -----------------------------
         db.logout()
-        db.login("user1", "pass1")
-        result1 = db.request_reservation(resource1_id)
+        _, _, _, _ = db.login("user1", "pass1")
+        _, result1, _, _ = db.request_reservation(resource1_id)
 
         records = db.session.query(ReservationLifecycle).order_by(ReservationLifecycle.request_date).all()
         print(f"{operation}. After user1 reservation:")
@@ -472,8 +472,8 @@ def test_db_reservation_lifecycle_workflow_2():
         # 2. User2 requests reservation
         # -----------------------------
         db.logout()
-        db.login("user2", "pass2")
-        result2 = db.request_reservation(resource1_id)
+        _, _, _, _ = db.login("user2", "pass2")
+        _, result2, _, _ = db.request_reservation(resource1_id)
 
         records = db.session.query(ReservationLifecycle).order_by(ReservationLifecycle.request_date).all()
         print(f"{operation}. After user2 reservation:")
@@ -496,8 +496,8 @@ def test_db_reservation_lifecycle_workflow_2():
         # 3. User3 requests reservation
         # -----------------------------
         db.logout()
-        db.login("user3", "pass3")
-        result3 = db.request_reservation(resource1_id)
+        _, _, _, _ = db.login("user3", "pass3")
+        _, result3, _, _ = db.request_reservation(resource1_id)
 
         records = db.session.query(ReservationLifecycle).order_by(ReservationLifecycle.request_date).all()
         print(f"{operation}. After user3 reservation:")
@@ -528,8 +528,8 @@ def test_db_reservation_lifecycle_workflow_2():
         # 4. User2 cancels reservation
         # ----------------------------
         db.logout()
-        db.login("user2", "pass2")
-        db.cancel_reservation(resource1_id)
+        _, _, _, _ = db.login("user2", "pass2")
+        _, _, _, _ = db.cancel_reservation(resource1_id)
 
         records = db.session.query(ReservationLifecycle).order_by(ReservationLifecycle.request_date).all()
         print(f"{operation}. After user2 cancel:")
@@ -560,8 +560,8 @@ def test_db_reservation_lifecycle_workflow_2():
         # 5. User2 requests reservation
         # -----------------------------
         db.logout()
-        db.login("user2", "pass2")
-        result4 = db.request_reservation(resource1_id)
+        _, _, _, _ = db.login("user2", "pass2")
+        _, result4, _, _ = db.request_reservation(resource1_id)
 
         records = db.session.query(ReservationLifecycle).order_by(ReservationLifecycle.request_date).all()
         print(f"{operation}. After user2 new reservation:")
@@ -609,14 +609,14 @@ def test_db_reservation_lifecycle_workflow_3():
         db.session.query(ReservationLifecycle).delete()
         db.session.commit()
 
-        admin_user = db.login("admin", "admin")
-        resource1 = db.create_resource("Resource1", "Test resource 1")
+        _, admin_user, _, _ = db.login("admin", "admin")
+        _, resource1, _, _ = db.create_resource("Resource1", "Test resource 1")
         resource1_id = resource1.id
 
-        user1 = db.create_user("user1", "user1@example.com", "pass1")
-        user2 = db.create_user("user2", "user2@example.com", "pass2")
-        user3 = db.create_user("user3", "user3@example.com", "pass3")
-        user4 = db.create_user("user4", "user4@example.com", "pass4")
+        _, user1, _, _ = db.create_user("user1", "user1@example.com", "pass1")
+        _, user2, _, _ = db.create_user("user2", "user2@example.com", "pass2")
+        _, user3, _, _ = db.create_user("user3", "user3@example.com", "pass3")
+        _, user4, _, _ = db.create_user("user4", "user4@example.com", "pass4")
 
         operation += 1
 
@@ -624,22 +624,22 @@ def test_db_reservation_lifecycle_workflow_3():
         # 1. User1/2/3/4 requests reservation
         # -----------------------------------
         db.logout()
-        db.login("user1", "pass1")
-        result1 = db.request_reservation(resource1_id)
+        _, _, _, _ = db.login("user1", "pass1")
+        _, result1, _, _ = db.request_reservation(resource1_id)
 
         db.logout()
-        db.login("user2", "pass2")
-        result1 = db.request_reservation(resource1_id)
+        _, _, _, _ = db.login("user2", "pass2")
+        _, result1, _, _ = db.request_reservation(resource1_id)
 
         db.logout()
-        db.login("user3", "pass3")
-        result1 = db.request_reservation(resource1_id)
+        _, _, _, _ = db.login("user3", "pass3")
+        _, result1, _, _ = db.request_reservation(resource1_id)
 
         db.logout()
-        db.login("user4", "pass4")
-        result1 = db.request_reservation(resource1_id)
+        _, _, _, _ = db.login("user4", "pass4")
+        _, result1, _, _ = db.request_reservation(resource1_id)
 
-        active_reservations = db.get_active_reservations()
+        active_reservations = db.get_active_reservations(resource1_id)
 
         print(f"{operation}. user1/user2/user3/user4 requested reservations:")
         for r in active_reservations:
@@ -672,14 +672,14 @@ def test_db_reservation_lifecycle_workflow_3():
         # 2. Release User1/2 release reservation
         # --------------------------------------
         db.logout()
-        db.login("user1", "pass1")
-        result2 = db.release_reservation(resource1_id)
+        _, _, _, _ = db.login("user1", "pass1")
+        _, result2, _, _ = db.release_reservation(resource1_id)
 
         db.logout()
-        db.login("user2", "pass2")
-        result2 = db.release_reservation(resource1_id)
+        _, _, _, _ = db.login("user2", "pass2")
+        _, result2, _, _ = db.release_reservation(resource1_id)
 
-        active_reservations = db.get_active_reservations()
+        active_reservations = db.get_active_reservations(resource1_id)
 
         print(f"{operation}. user1 and after user2 released their reservations:")
         for r in active_reservations:
@@ -698,14 +698,10 @@ def test_db_reservation_lifecycle_workflow_3():
                 assert r.cancelled_date is None
                 assert r.released_date is None
             print(f"  ID:{r.id} User:{r.user_id}({r.user.name}) Resource:{r.resource_id} Request:{r.request_date} Approved:{r.approved_date} Cancelled:{r.cancelled_date} Released:{r.released_date}")
-        print("")
+        #print("")
         operation += 1
 
     print(f"{GREEN}Database reservation lifecycle workflow 2 tests passed!{RESET}")
-
-
-
-
 
 
 if __name__ == "__main__":

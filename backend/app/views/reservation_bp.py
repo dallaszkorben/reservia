@@ -6,13 +6,19 @@ from ..database import Database
 from ..utils import epoch_to_iso8601
 
 class RequestReservationView(BaseView):
-    """
-    User reservation request endpoint (requires user login)
+    """Handles POST requests for creating new reservation requests.
 
-    Usage:
-    curl -H "Content-Type: application/json" -X POST -b cookies.txt \
-         -d '{"resource_id": 1}' \
-         http://localhost:5000/reservation/request
+    Requires user authentication. Creates a new reservation request for the specified resource.
+    If the resource is available, the request is auto-approved.
+    Users cannot make duplicate requests for the same resource if they already have an active reservation.
+
+    Returns:
+        tuple: JSON response with reservation details and HTTP status code
+
+    Example:
+        curl -H "Content-Type: application/json" -X POST -b cookies.txt \
+             -d '{"resource_id": 1}' \
+             http://localhost:5000/reservation/request
     """
     def post(self):
         logging.info(f"{LOG_PREFIX_ENDPOINT}/reservation/request endpoint accessed")
@@ -27,9 +33,9 @@ class RequestReservationView(BaseView):
                 return jsonify({"error": "resource_id is required"}), 400
 
             db = Database.get_instance()
-            reservation = db.request_reservation(resource_id)
+            success, reservation, error_code, error_msg = db.request_reservation(resource_id)
 
-            if reservation:
+            if success:
                 return jsonify({
                     "message": "Reservation request successful",
                     "reservation_id": reservation.id,
@@ -37,7 +43,13 @@ class RequestReservationView(BaseView):
                     "status": "approved" if reservation.approved_date else "requested"
                 }), 201
             else:
-                return jsonify({"error": "Failed to create reservation"}), 400
+                if error_code == "AUTH_REQUIRED":
+                    return jsonify({"error": error_msg}), 401
+                elif error_code == "RESOURCE_NOT_FOUND":
+                    return jsonify({"error": error_msg}), 404
+                elif error_code == "DUPLICATE_RESERVATION":
+                    return jsonify({"error": error_msg}), 409
+                return jsonify({"error": error_msg}), 400
 
         except Exception as e:
             logging.error(f"{LOG_PREFIX_ENDPOINT}Error in request_reservation: {str(e)}")
@@ -45,35 +57,18 @@ class RequestReservationView(BaseView):
 
 
 class CancelReservationView(BaseView):
-    """
-    Cancel reservation endpoint (requires user login)
+    """Handles POST requests for cancelling existing reservation requests.
 
-    Usage:
-    curl -H "Content-Type: application/json" -X POST -b cookies.txt \
-         -d '{"resource_id": 1}' \
-         http://localhost:5000/reservation/cancel
+    Requires user authentication. Cancels the user's active reservation request
+    for the specified resource by setting the cancelled_date.
 
-    Success Response:
-    {
-        "message": "Reservation cancelled successfully",
-        "reservation_id": <reservation_id>,
-        "resource_id": <resource_id>,
-        "cancelled_date": "<iso8601_datetime>"
-    }
+    Returns:
+        tuple: JSON response with cancellation details and HTTP status code
 
-    Example Response:
-    {
-        "message": "Reservation cancelled successfully",
-        "reservation_id": 2,
-        "resource_id": 1,
-        "cancelled_date": "2023-12-21T10:45:30+01:00"
-    }
-
-    Error Responses:
-    - 400: {"error": "JSON data required"}
-    - 400: {"error": "resource_id is required"}
-    - 400: {"error": "Failed to cancel reservation"}
-    - 500: {"error": "Internal server error"}
+    Example:
+        curl -H "Content-Type: application/json" -X POST -b cookies.txt \
+             -d '{"resource_id": 1}' \
+             http://localhost:5000/reservation/cancel
     """
     def post(self):
         logging.info(f"{LOG_PREFIX_ENDPOINT}/reservation/cancel endpoint accessed")
@@ -88,9 +83,9 @@ class CancelReservationView(BaseView):
                 return jsonify({"error": "resource_id is required"}), 400
 
             db = Database.get_instance()
-            reservation = db.cancel_reservation(resource_id)
+            success, reservation, error_code, error_msg = db.cancel_reservation(resource_id)
 
-            if reservation:
+            if success:
                 return jsonify({
                     "message": "Reservation cancelled successfully",
                     "reservation_id": reservation.id,
@@ -98,7 +93,11 @@ class CancelReservationView(BaseView):
                     "cancelled_date": epoch_to_iso8601(reservation.cancelled_date)
                 }), 200
             else:
-                return jsonify({"error": "Failed to cancel reservation"}), 400
+                if error_code == "AUTH_REQUIRED":
+                    return jsonify({"error": error_msg}), 401
+                elif error_code == "RESERVATION_NOT_FOUND":
+                    return jsonify({"error": error_msg}), 404
+                return jsonify({"error": error_msg}), 400
 
         except Exception as e:
             logging.error(f"{LOG_PREFIX_ENDPOINT}Error in cancel_reservation: {str(e)}")
@@ -108,35 +107,18 @@ class CancelReservationView(BaseView):
 
 
 class ReleaseReservationView(BaseView):
-    """
-    Release reservation endpoint (requires user login)
+    """Handles POST requests for releasing approved reservations.
 
-    Usage:
-    curl -H "Content-Type: application/json" -X POST -b cookies.txt \
-         -d '{"resource_id": 1}' \
-         http://localhost:5000/reservation/release
+    Requires user authentication. Releases the user's approved reservation
+    for the specified resource and auto-approves the next queued user.
 
-    Success Response:
-    {
-        "message": "Reservation released successfully",
-        "reservation_id": <reservation_id>,
-        "resource_id": <resource_id>,
-        "released_date": "<iso8601_datetime>"
-    }
+    Returns:
+        tuple: JSON response with release details and HTTP status code
 
-    Example Response:
-    {
-        "message": "Reservation released successfully",
-        "reservation_id": 1,
-        "resource_id": 1,
-        "released_date": "2023-12-21T11:00:15+01:00"
-    }
-
-    Error Responses:
-    - 400: {"error": "JSON data required"}
-    - 400: {"error": "resource_id is required"}
-    - 400: {"error": "Failed to release reservation"}
-    - 500: {"error": "Internal server error"}
+    Example:
+        curl -H "Content-Type: application/json" -X POST -b cookies.txt \
+             -d '{"resource_id": 1}' \
+             http://localhost:5000/reservation/release
     """
     def post(self):
         logging.info(f"{LOG_PREFIX_ENDPOINT}/reservation/release endpoint accessed")
@@ -151,9 +133,9 @@ class ReleaseReservationView(BaseView):
                 return jsonify({"error": "resource_id is required"}), 400
 
             db = Database.get_instance()
-            reservation = db.release_reservation(resource_id)
+            success, reservation, error_code, error_msg = db.release_reservation(resource_id)
 
-            if reservation:
+            if success:
                 return jsonify({
                     "message": "Reservation released successfully",
                     "reservation_id": reservation.id,
@@ -161,7 +143,11 @@ class ReleaseReservationView(BaseView):
                     "released_date": epoch_to_iso8601(reservation.released_date)
                 }), 200
             else:
-                return jsonify({"error": "Failed to release reservation"}), 400
+                if error_code == "AUTH_REQUIRED":
+                    return jsonify({"error": error_msg}), 401
+                elif error_code == "RESERVATION_NOT_FOUND":
+                    return jsonify({"error": error_msg}), 404
+                return jsonify({"error": error_msg}), 400
 
         except Exception as e:
             logging.error(f"{LOG_PREFIX_ENDPOINT}Error in release_reservation: {str(e)}")
@@ -169,59 +155,17 @@ class ReleaseReservationView(BaseView):
 
 
 class GetActiveReservationsView(BaseView):
-    """
-    Get active reservations endpoint (requires user login)
+    """Handles GET requests for retrieving active reservations for a specific resource.
 
-    Usage:
-    curl -H "Content-Type: application/json" -X GET -b cookies.txt \
-         -d '{}' \
-         http://localhost:5000/reservation/active
+    Requires user authentication and resource_id query parameter. Returns non-cancelled, 
+    non-released reservations for the specified resource with user and resource details.
 
-    General Output Format:
-    {
-        "message": "Active reservations retrieved successfully",
-        "reservations": [
-            {
-                "id": <reservation_id>,
-                "user_id": <user_id>,
-                "user_name": "<user_name>",
-                "resource_id": <resource_id>,
-                "resource_name": "<resource_name>",
-                "request_date": "<iso8601_datetime>",
-                "approved_date": "<iso8601_datetime_or_null>",
-                "status": "approved|requested"
-            }
-        ],
-        "count": <number_of_reservations>
-    }
+    Returns:
+        tuple: JSON response with reservations list and HTTP status code
 
-    Example Output:
-    {
-        "message": "Active reservations retrieved successfully",
-        "reservations": [
-            {
-                "id": 1,
-                "user_id": 2,
-                "user_name": "john_doe",
-                "resource_id": 1,
-                "resource_name": "Meeting Room A",
-                "request_date": "2023-12-21T10:30:56+01:00",
-                "approved_date": "2023-12-21T10:30:56+01:00",
-                "status": "approved"
-            },
-            {
-                "id": 2,
-                "user_id": 3,
-                "user_name": "jane_smith",
-                "resource_id": 1,
-                "resource_name": "Meeting Room A",
-                "request_date": "2023-12-21T10:31:40+01:00",
-                "approved_date": null,
-                "status": "requested"
-            }
-        ],
-        "count": 2
-    }
+    Example:
+        curl -H "Content-Type: application/json" -X GET -b cookies.txt \
+             "http://localhost:5000/reservation/active?resource_id=1"
     """
     def get(self):
         logging.info(f"{LOG_PREFIX_ENDPOINT}/reservation/active endpoint accessed")
@@ -233,7 +177,16 @@ class GetActiveReservationsView(BaseView):
             if not current_user:
                 return jsonify({"error": "Authentication required"}), 401
 
-            reservations = db.get_active_reservations()
+            resource_id = request.args.get('resource_id')
+            if not resource_id:
+                return jsonify({"error": "resource_id parameter is required"}), 400
+
+            try:
+                resource_id = int(resource_id)
+            except ValueError:
+                return jsonify({"error": "resource_id must be a valid integer"}), 400
+
+            reservations = db.get_active_reservations(resource_id)
 
             reservation_list = []
             for r in reservations:

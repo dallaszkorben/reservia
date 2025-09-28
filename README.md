@@ -81,13 +81,19 @@ python app.py
 - `name` (TEXT, Unique, NOT NULL)
 - `comment` (TEXT, NULL)
 
-### Request Table
+### Passwords Table
+- `id` (INTEGER, Primary Key, Auto-increment)
+- `user_id` (INTEGER, Foreign Key → Users.id)
+- `password_hash` (TEXT, NOT NULL) - SHA-256 hashed password
+
+### ReservationLifecycle Table
 - `id` (INTEGER, Primary Key, Auto-increment)
 - `user_id` (INTEGER, Foreign Key → Users.id)
 - `resource_id` (INTEGER, Foreign Key → Resources.id)
 - `request_date` (INTEGER, NOT NULL) - Unix timestamp
 - `approved_date` (INTEGER, NULL) - Unix timestamp
 - `cancelled_date` (INTEGER, NULL) - Unix timestamp
+- `released_date` (INTEGER, NULL) - Unix timestamp
 
 ## Current Features
 
@@ -99,12 +105,19 @@ python app.py
 - **POST /session/logout** - User logout
 - **POST /admin/user/add** - Add new user (requires admin login and JSON payload)
 - **POST /admin/resource/add** - Add new resource (requires admin login and JSON payload)
+- **POST /reservation/request** - Request resource reservation (requires user login)
+- **GET /reservation/active** - Get all active reservations (requires user login)
+- **POST /reservation/cancel** - Cancel user's reservation (requires user login)
+- **POST /reservation/release** - Release approved reservation (requires user login)
 
 ### Database Management
 - SQLite database with SQLAlchemy ORM
 - Automatic table creation on first run
 - User management (create/retrieve users)
+- Resource management (create/retrieve resources)
+- Reservation lifecycle management with queue system
 - SQL injection protection through ORM
+- Structured error handling with specific error codes
 
 ### Logging System
 - Rotating log files in user home directory (~/.reservia/)
@@ -117,6 +130,9 @@ python app.py
 - Singleton database pattern
 - Blueprint-based modular endpoint organization
 - Configuration-driven application setup
+- Reservation queue system with auto-approval logic
+- Thread-safe database operations with locking
+- Google Style documentation standards
 
 ## Usage
 
@@ -184,6 +200,42 @@ Expected response:
 {"message": "Resource created successfully", "resource_id": 1}
 ```
 
+#### Request Reservation (User Login Required)
+```bash
+curl -H "Content-Type: application/json" -X POST -b cookies.txt -d '{"resource_id": 1}' http://localhost:5000/reservation/request
+```
+Expected response:
+```json
+{"message": "Reservation request successful", "reservation_id": 1, "resource_id": 1, "status": "approved"}
+```
+
+#### Get Active Reservations (User Login Required)
+```bash
+curl -H "Content-Type: application/json" -X GET -b cookies.txt http://localhost:5000/reservation/active
+```
+Expected response:
+```json
+{"message": "Active reservations retrieved successfully", "reservations": [...], "count": 2}
+```
+
+#### Cancel Reservation (User Login Required)
+```bash
+curl -H "Content-Type: application/json" -X POST -b cookies.txt -d '{"resource_id": 1}' http://localhost:5000/reservation/cancel
+```
+Expected response:
+```json
+{"message": "Reservation cancelled successfully", "reservation_id": 1, "resource_id": 1, "cancelled_date": "2023-12-21T10:45:30+01:00"}
+```
+
+#### Release Reservation (User Login Required)
+```bash
+curl -H "Content-Type: application/json" -X POST -b cookies.txt -d '{"resource_id": 1}' http://localhost:5000/reservation/release
+```
+Expected response:
+```json
+{"message": "Reservation released successfully", "reservation_id": 1, "resource_id": 1, "released_date": "2023-12-21T11:00:15+01:00"}
+```
+
 ### Session Management Workflow
 1. **Login**: Use `-c cookies.txt` to save session cookie
 2. **Authenticated requests**: Use `-b cookies.txt` to send session cookie
@@ -191,8 +243,25 @@ Expected response:
 
 **Note**: The logout endpoint properly invalidates the session cookie. After logout, subsequent requests to admin endpoints will fail with authentication errors.
 
+## Reservation System Features
+
+### Queue Management
+- Multiple users can request the same resource
+- First user gets auto-approved if resource is available
+- Subsequent users are queued (request_date set, approved_date null)
+- When approved user releases resource, next queued user is auto-approved
+
+### Resource Status Logic
+- **Available**: No active reservations or last reservation has released_date
+- **Occupied**: Last non-cancelled reservation has no released_date
+- **Queued**: Multiple users waiting for resource availability
+
+### Error Handling
+- Structured database responses with specific error codes
+- Proper HTTP status codes (401, 403, 404, 409)
+- Comprehensive logging with user and resource details
+
 ## Features In Development
-- Resource management endpoints
-- Request/booking system
-- User authentication
 - Frontend templates and forms
+- Enhanced resource management
+- User dashboard and reservation history
