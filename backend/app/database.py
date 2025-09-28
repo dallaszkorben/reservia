@@ -35,8 +35,8 @@ class Password(Base):
 
     user = relationship("User")
 
-class Request(Base):
-    __tablename__ = 'requests'
+class ReservationLifecycle(Base):
+    __tablename__ = 'reservation_lifecycle'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
@@ -44,6 +44,7 @@ class Request(Base):
     request_date = Column(Integer, nullable=False)
     approved_date = Column(Integer, nullable=True)
     cancelled_date = Column(Integer, nullable=True)
+    released_date = Column(Integer, nullable=True)
 
     user = relationship("User")
     resource = relationship("Resource")
@@ -229,71 +230,165 @@ class Database:
 
     # === Request ===
 
-    def create_request_for_resource(self, resource_id):
-        # Only logged-in users can send requests
+    def request_reservation(self, resource_id):
+        # Only logged-in users can request reservations
         current_user = self.get_current_user()
         if not current_user:
-            logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized request attempt - user not logged in")
+            logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized approve reservation request - user not logged in")
             return None
 
         with self.lock:
             user_id = current_user['user_id']
-            
+
             # Verify resource exists
             resource = self.session.query(Resource).filter(Resource.id == resource_id).first()
             if not resource:
                 logging.error(f"{LOG_PREFIX_DATABASE}Resource with ID {resource_id} not found")
                 return None
 
-            # Create request
+            # Check if user already has reservation on this resource
+            existing_reservation = self.session.query(ReservationLifecycle).filter(
+                ReservationLifecycle.user_id == user_id,
+                ReservationLifecycle.resource_id == resource_id,
+                ReservationLifecycle.cancelled_date.is_(None),
+                ReservationLifecycle.released_date.is_(None)
+            ).first()
+
+            if existing_reservation:
+                logging.error(f"{LOG_PREFIX_DATABASE}User {user_id} already has reservation on Resource {resource_id}")
+                return None
+
+            # Create new reservation lifecycle record
             request_epoch = get_current_epoch()
-            request = Request(
+            reservation = ReservationLifecycle(
                 user_id=user_id,
                 resource_id=resource_id,
                 request_date=request_epoch
             )
-            self.session.add(request)
+
+            # Check if resource is free
+            last_record = self.session.query(ReservationLifecycle).filter(
+                ReservationLifecycle.resource_id == resource_id,
+                ReservationLifecycle.cancelled_date.is_(None)
+            ).order_by(ReservationLifecycle.request_date.desc()).first()
+
+            is_free = True
+            if last_record:
+                # Resource is free only if last record is released
+                if last_record.released_date is None:
+                    is_free = False
+
+            # If resource is free, auto-approve the reservation
+            if is_free:
+                reservation.approved_date = request_epoch
+
+            self.session.add(reservation)
             self.session.commit()
 
+            # Logging
             request_iso = epoch_to_iso8601(request_epoch)
             user_name = current_user['user_name']
             resource_name = resource.name
-            logging.info(f"{LOG_PREFIX_DATABASE}Request created: User {user_id} ({user_name}) requested Resource {resource_id} ({resource_name}) at {request_iso}")
-            return request
+            status = "approved" if is_free else "requested"
+            logging.info(f"{LOG_PREFIX_DATABASE}Reservation {status}: User {user_id} ({user_name}) for Resource {resource_id} ({resource_name}) at {request_iso}")
 
-    def update_request_for_resource(self, request_id, approved_date=None, cancelled_date=None):
+            return reservation
+
+    def cancel_reservation(self, resource_id):
+        # Only logged-in users can cancel reservations
+        current_user = self.get_current_user()
+        if not current_user:
+            logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized reservation cancellation - user not logged in")
+            return None
+
         with self.lock:
-            # Find the request
-            request = self.session.query(Request).filter(Request.id == request_id).first()
-            if not request:
-                logging.error(f"{LOG_PREFIX_DATABASE}Request with ID {request_id} not found")
+            user_id = current_user['user_id']
+
+            # Find the reservation to cancel
+            reservation = self.session.query(ReservationLifecycle).filter(
+                ReservationLifecycle.user_id == user_id,
+                ReservationLifecycle.resource_id == resource_id,
+                ReservationLifecycle.request_date.isnot(None),
+                ReservationLifecycle.approved_date.is_(None),
+                ReservationLifecycle.cancelled_date.is_(None),
+                ReservationLifecycle.released_date.is_(None)
+            ).first()
+
+            if not reservation:
+                logging.error(f"{LOG_PREFIX_DATABASE}No active reservation found for User {user_id} on Resource {resource_id}")
                 return None
 
-            # Update fields if provided
-            if approved_date is not None:
-                request.approved_date = approved_date
-            
-            if cancelled_date is not None:
-                request.cancelled_date = cancelled_date
-
+            # Cancel the reservation
+            cancel_epoch = get_current_epoch()
+            reservation.cancelled_date = cancel_epoch
             self.session.commit()
-            
-            # Get user and resource names for logging
-            user = request.user
-            resource = request.resource
-            request_date_iso = epoch_to_iso8601(request.request_date)
-            
-            # Build log message with detailed information
-            log_msg = f"Request {request_id} updated: User {user.id} ({user.name}) for Resource {resource.id} ({resource.name}), requested at {request_date_iso}"
-            
-            if approved_date is not None:
-                approved_iso = epoch_to_iso8601(approved_date)
-                log_msg += f", approved at {approved_iso}"
-            
-            if cancelled_date is not None:
-                cancelled_iso = epoch_to_iso8601(cancelled_date)
-                log_msg += f", cancelled at {cancelled_iso}"
-            
-            logging.info(f"{LOG_PREFIX_DATABASE}{log_msg}")
-            return request
+
+            # Logging
+            cancel_iso = epoch_to_iso8601(cancel_epoch)
+            user_name = current_user['user_name']
+            resource_name = reservation.resource.name
+            logging.info(f"{LOG_PREFIX_DATABASE}Reservation cancelled: User {user_id} ({user_name}) for Resource {resource_id} ({resource_name}) at {cancel_iso}")
+
+            return reservation
+
+    def release_reservation(self, resource_id):
+        # Only logged-in users can release reservations
+        current_user = self.get_current_user()
+        if not current_user:
+            logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized reservation release - user not logged in")
+            return None
+
+        with self.lock:
+            user_id = current_user['user_id']
+
+            # Find the reservation to release
+            reservation = self.session.query(ReservationLifecycle).filter(
+                ReservationLifecycle.user_id == user_id,
+                ReservationLifecycle.resource_id == resource_id,
+                ReservationLifecycle.request_date.isnot(None),
+                ReservationLifecycle.approved_date.isnot(None),
+                ReservationLifecycle.cancelled_date.is_(None),
+                ReservationLifecycle.released_date.is_(None)
+            ).first()
+
+            if not reservation:
+                logging.error(f"{LOG_PREFIX_DATABASE}No approved reservation found for User {user_id} on Resource {resource_id}")
+                return None
+
+            # Release the reservation
+            release_epoch = get_current_epoch()
+            reservation.released_date = release_epoch
+
+            # Find next queued user (not cancelled, not approved yet, requested after current reservation)
+            next_reservation = self.session.query(ReservationLifecycle).filter(
+                ReservationLifecycle.resource_id == resource_id,
+                ReservationLifecycle.approved_date.is_(None),
+                ReservationLifecycle.cancelled_date.is_(None),
+                ReservationLifecycle.released_date.is_(None),
+                ReservationLifecycle.request_date >= reservation.request_date
+            ).order_by(ReservationLifecycle.request_date.asc()).first()
+
+            # Auto-approve next user if exists
+            if next_reservation:
+                next_reservation.approved_date = release_epoch
+                next_user = self.session.query(User).filter(User.id == next_reservation.user_id).first()
+                logging.info(f"{LOG_PREFIX_DATABASE}Auto-approved next user: {next_reservation.user_id} ({next_user.name}) for Resource {resource_id}")
+            self.session.commit()
+
+            # Logging
+            release_iso = epoch_to_iso8601(release_epoch)
+            user_name = current_user['user_name']
+            resource_name = reservation.resource.name
+            logging.info(f"{LOG_PREFIX_DATABASE}Reservation released: User {user_id} ({user_name}) for Resource {resource_id} ({resource_name}) at {release_iso}")
+
+            return reservation
+
+    def get_active_reservations(self):
+        with self.lock:
+            reservations = self.session.query(ReservationLifecycle).filter(
+                ReservationLifecycle.cancelled_date.is_(None),
+                ReservationLifecycle.released_date.is_(None)
+            ).order_by(ReservationLifecycle.request_date.asc()).all()
+            logging.info(f"{LOG_PREFIX_DATABASE}Retrieved {len(reservations)} active reservations")
+            return reservations
 

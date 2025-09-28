@@ -21,7 +21,7 @@ class AdminBlueprintManager:
 class AdminUserAdd(BaseView):
     """
     Admin user creation endpoint (requires admin login)
-    
+
     Usage:
     curl -H "Content-Type: application/json" -X POST -b cookies.txt \
          -d '{"name": "John Doe", "email": "john@example.com", "password": "password123"}' \
@@ -50,7 +50,7 @@ class AdminUserAdd(BaseView):
 class AdminResourceAdd(BaseView):
     """
     Admin resource creation endpoint (requires admin login)
-    
+
     Usage:
     curl -H "Content-Type: application/json" -X POST -b cookies.txt \
          -d '{"name": "Meeting Room", "comment": "Conference room for 10 people"}' \

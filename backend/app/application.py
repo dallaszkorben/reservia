@@ -8,6 +8,7 @@ from .views.info_bp import InfoBlueprintManager
 from .views.home_bp import HomeBlueprintManager
 from .views.admin_bp import AdminBlueprintManager
 from .views.session_bp import SessionBlueprintManager
+from .views.reservation_bp import ReservationBlueprintManager
 from .database import Database
 from datetime import datetime, timedelta
 
@@ -30,6 +31,11 @@ class ReserviaApp(Flask):
 
         self.database = Database.get_instance(self.config_dict)
 
+        # Store application config in Flask's config for global access
+        # This allows accessing config_dict from anywhere in the app via current_app.config['APP_CONFIG']
+        # For example:
+        # from flask import current_app
+        # print(current_app.config['APP_CONFIG'])
         self.app.config['APP_CONFIG'] = self.config_dict
 
         self._register_blueprints()
@@ -67,8 +73,10 @@ class ReserviaApp(Flask):
         info_manager = InfoBlueprintManager()
         admin_manager = AdminBlueprintManager()
         session_manager = SessionBlueprintManager()
+        reservation_manager = ReservationBlueprintManager()
 
         self.app.register_blueprint(home_manager.get_blueprint())
         self.app.register_blueprint(info_manager.get_blueprint())
         self.app.register_blueprint(admin_manager.get_blueprint())
         self.app.register_blueprint(session_manager.get_blueprint())
+        self.app.register_blueprint(reservation_manager.get_blueprint())
