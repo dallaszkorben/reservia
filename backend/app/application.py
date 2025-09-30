@@ -17,7 +17,13 @@ class ReserviaApp(Flask):
 
     def __init__(self, config_dict=None):
 
-        super().__init__(config_dict['app_name'])
+        # Get absolute paths to templates and static folders
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(os.path.dirname(current_dir))
+        template_folder = os.path.join(project_root, 'frontend', 'templates')
+        static_folder = os.path.join(project_root, 'frontend', 'static')
+        
+        super().__init__(config_dict['app_name'], template_folder=template_folder, static_folder=static_folder)
 
         self.app = self
         self.config_dict = config_dict

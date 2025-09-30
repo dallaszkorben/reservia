@@ -144,7 +144,8 @@ class Database:
             session['logged_in_user'] = {
                 'user_id': user.id,
                 'user_email': user.email,
-                'user_name': user.name
+                'user_name': user.name,
+                'secret': 'my_secret'
             }
             session.permanent = True
 

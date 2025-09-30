@@ -1,0 +1,112 @@
+/* ===== GLOBAL STYLES ===== */
+/* Main page background and font settings */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; /* Apple system fonts */
+    background: linear-gradient(135deg, #007AFF 0%, #5AC8FA 50%, #34C759 100%); /* Apple blue to green gradient */
+    margin: 0;
+    padding: 20px;
+    min-height: 100vh;
+}
+
+/* ===== HEADER SECTION ===== */
+/* Top section containing title, login/logout buttons, and session info */
+#header {
+    background: rgba(255,255,255,0.95); /* Bright white with slight transparency */
+    backdrop-filter: blur(20px); /* Strong glass effect */
+    border-radius: 16px; /* More rounded corners */
+    padding: 25px;
+    margin-bottom: 25px;
+    box-shadow: 0 10px 40px rgba(0,122,255,0.2); /* Blue-tinted shadow */
+    border: 1px solid rgba(255,255,255,0.3); /* Subtle white border */
+}
+
+/* Main title "Reservia" */
+h1 {
+    color: #007AFF; /* Apple blue */
+    margin: 0 0 15px 0;
+    font-weight: 700; /* Bold */
+    font-size: 2.2em;
+}
+
+/* ===== BUTTONS ===== */
+/* All jQuery UI buttons (Login, Logout, etc.) */
+.ui-button {
+    border-radius: 25px !important; /* More rounded pill shape */
+    font-weight: 600 !important; /* Bolder text */
+    padding: 12px 24px !important; /* More padding */
+    background: linear-gradient(135deg, #007AFF, #5AC8FA) !important; /* Apple blue gradient */
+    border: none !important;
+    color: white !important;
+    box-shadow: 0 4px 15px rgba(0,122,255,0.3) !important; /* Blue shadow */
+    transition: all 0.3s ease !important;
+}
+
+.ui-button:hover {
+    transform: translateY(-2px) !important; /* Lift effect on hover */
+    box-shadow: 0 6px 20px rgba(0,122,255,0.4) !important;
+}
+
+/* ===== LOGIN DIALOG ===== */
+/* Modal dialog box for login form */
+#login-form {
+    background: rgba(255,255,255,0.98); /* Bright white */
+    border-radius: 20px; /* More rounded corners */
+    padding: 35px;
+    max-width: 350px;
+    margin: 20px auto;
+    box-shadow: 0 15px 50px rgba(0,122,255,0.2); /* Blue-tinted shadow */
+    border: 1px solid rgba(255,255,255,0.5);
+}
+
+/* ===== INPUT FIELDS ===== */
+/* Username and password input fields */
+.ui-widget input {
+    border-radius: 12px; /* More rounded input fields */
+    border: 2px solid #E5E5EA; /* Light border */
+    padding: 15px; /* More internal spacing */
+    margin: 10px 0; /* More vertical spacing */
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 16px;
+    transition: border-color 0.3s ease;
+}
+
+.ui-widget input:focus {
+    border-color: #007AFF; /* Apple blue on focus */
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0,122,255,0.1); /* Blue glow */
+}
+
+/* ===== RESOURCE GRID SYSTEM ===== */
+/* Container that holds all resource rectangles */
+#resource-container {
+    position: relative; /* Allow absolute positioning of children */
+    width: 100%; /* Full width */
+    margin-top: 30px; /* Space from content above */
+    background: rgba(255,255,255,0.1); /* Subtle background */
+    border-radius: 16px; /* Rounded corners */
+    padding: 20px 0; /* Vertical padding */
+}
+
+/* ===== RESOURCE RECTANGLES ===== */
+/* Individual resource rectangle styling */
+.resource-rectangle {
+    background: linear-gradient(135deg, #FF3B30, #FF9500); /* Red to orange gradient */
+    border-radius: 12px; /* Rounded corners */
+    border: 2px solid rgba(255,255,255,0.3); /* White border */
+    box-shadow: 0 4px 15px rgba(255,59,48,0.3); /* Red shadow */
+    display: flex; /* Center content */
+    align-items: center; /* Vertical center */
+    justify-content: center; /* Horizontal center */
+    color: white; /* White text */
+    font-weight: 600; /* Bold text */
+    font-size: 16px; /* Text size */
+    cursor: pointer; /* Clickable cursor */
+    transition: all 0.3s ease; /* Smooth animations */
+}
+
+/* Hover effect for resource rectangles */
+.resource-rectangle:hover {
+    transform: translateY(-5px) scale(1.05); /* Lift and scale on hover */
+    box-shadow: 0 8px 25px rgba(255,59,48,0.4); /* Stronger shadow */
+}

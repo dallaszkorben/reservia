@@ -1,9 +1,9 @@
-from flask import Blueprint
+from flask import Blueprint, render_template
 from .base_view import BaseView
 
 class HomeView(BaseView):
     def get(self):
-        return "Reservia - Resource Reservation Management System"
+        return render_template('index.html')
 
 class HomeBlueprintManager:
     def __init__(self):

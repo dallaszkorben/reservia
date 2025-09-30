@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reservia - Resource Reservation System</title>
+    <script src="{{ url_for('static', filename='js/jquery/jquery-3.6.0.min.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='js/jquery-ui/jquery-ui.min.css') }}">
+    <script src="{{ url_for('static', filename='js/jquery-ui/jquery-ui.min.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div id="header">
+        <h1>Reservia</h1>
+        <div id="auth-buttons">
+            <button id="login-btn" style="margin-right:10px;">Login</button>
+            <button id="logout-btn" style="margin-right:10px;">Logout</button>
+            <span id="user-info" style="display:none;">Welcome, <span id="user-name"></span></span>
+        </div>
+        <div id="session-status" style="margin-top:10px; font-weight:bold;"></div>
+        <div id="session-details" style="margin-top:10px; font-family:monospace; font-size:12px;"></div>
+    </div>
+
+    <div id="login-form" style="display:none;">
+        <h2>Login</h2>
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <button id="login-submit">Login</button>
+        <button id="login-cancel">Cancel</button>
+        <div id="login-error" style="color:red; display:none;"></div>
+    </div>
+
+    <div id="main-content">
+        <p>Welcome to Reservia Resource Reservation System</p>
+    </div>
+    <div id="resource-container">
+
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // Initialize jQuery UI elements
+            $('button').button();
+            $('#login-form').dialog({
+                autoOpen: false,
+                modal: true,
+                width: 350,
+                resizable: false,
+                draggable: true,
+                title: 'Login to Reservia'
+            });
+
+            console.log('Page loaded, checking session...');
+            checkSession();
+
+            $('#login-btn').click(function() {
+                showLoginForm();
+            });
+
+            $('#logout-btn').click(function() {
+                logout();
+            });
+
+            $('#login-submit').click(function() {
+                login();
+            });
+
+            $('#login-cancel').click(function() {
+                hideLoginForm();
+            });
+
+            // Generate resource rectangles after page loads
+            generateResourceRectangles();
+        });
+
+        // ===== RESOURCE RECTANGLE GENERATION =====
+        function generateResourceRectangles() {
+            // Configuration variables
+            const resource_width = 200;   // Width of each rectangle in pixels
+            const resource_height = 400;  // Height of each rectangle in pixels
+            const resource_number = 20;   // Total number of rectangles to create
+            const resource_gap = 20;      // Gap between rectangles in pixels
+            const resource_list_gap = 2;  // Gap between the rectangel and its list in pixels
+
+            // Get container and screen width
+            const container = $('#resource-container');
+            const screen_width = $(window).width() - 40; // Account for body padding
+
+            // Calculate how many rectangles fit per row (including gaps)
+            const rectangle_with_gap = resource_width + resource_gap;
+            const rectangles_per_row = Math.floor((screen_width + resource_gap) / rectangle_with_gap);
+
+            // Calculate total rows needed
+            const total_rows = Math.ceil(resource_number / rectangles_per_row);
+
+            // Set container height to fit all rows (including vertical gaps)
+            const row_with_gap = resource_height + resource_gap;
+            container.height((total_rows * row_with_gap) - resource_gap + 40); // Remove last gap, add padding
+
+            console.log(`Creating ${resource_number} rectangles in ${total_rows} rows (${rectangles_per_row} per row)`);
+
+            // ===== CREATE RECTANGLES ROW BY ROW =====
+            for (let row = 0; row < total_rows; row++) {
+                // Calculate rectangles in this row
+                const start_index = row * rectangles_per_row;
+                const end_index = Math.min(start_index + rectangles_per_row, resource_number);
+                const rectangles_in_row = end_index - start_index;
+
+                // ===== SYMMETRIC HORIZONTAL POSITIONING WITH GAPS =====
+                // Calculate total width including gaps between rectangles
+                const total_row_width = (rectangles_in_row * resource_width) + ((rectangles_in_row - 1) * resource_gap);
+                const start_x = (screen_width - total_row_width) / 2;
+
+                // Create rectangles for this row
+                for (let i = 0; i < rectangles_in_row; i++) {
+                    const rectangle_id = start_index + i + 1; // 1-based numbering
+
+                    // Calculate position with gaps
+                    const x_position = start_x + (i * (resource_width + resource_gap));
+                    const y_position = (row * (resource_height + resource_gap)) + 20; // Add top padding
+
+                    // Create rectangle element
+                    const rectangle = $('<div></div>')
+                        .addClass('resource-rectangle')
+                        .attr('id', `resource-${rectangle_id}`)
+                        .text(`R${rectangle_id}`)
+                        .css({
+                            position: 'absolute',
+                            left: x_position + 'px',
+                            top: y_position + 'px',
+                            width: resource_width + 'px',
+                            height: resource_height + 'px'
+                        });
+
+                    // Add rectangle to container
+                    container.append(rectangle);
+                }
+
+                console.log(`Row ${row + 1}: ${rectangles_in_row} rectangles, starting at x=${start_x}`);
+            }
+        }
+
+        // ===== WINDOW RESIZE HANDLER =====
+        // Regenerate rectangles when window is resized
+        $(window).resize(function() {
+            $('#resource-container').empty(); // Clear existing rectangles
+            generateResourceRectangles();     // Recreate with new layout
+        });
+
+        function checkSession() {
+            $.ajax({
+                url: '/session/status',
+                method: 'GET',
+                success: function(response) {
+                    if (response.logged_in) {
+                        showLoggedInUI(response);
+                    } else {
+                        showLoggedOutUI();
+                    }
+                },
+                error: function() {
+                    showLoggedOutUI();
+                }
+            });
+        }
+
+        function login() {
+            const username = $('#username').val();
+            const password = $('#password').val();
+
+            if (!username || !password) {
+                showError('Please enter username and password');
+                return;
+            }
+
+            $.ajax({
+                url: '/session/login',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({name: username, password: password}),
+                success: function(response) {
+                    hideLoginForm();
+                    checkSession(); // Refresh session data
+                    clearError();
+                },
+                error: function(xhr) {
+                    showError('Login failed');
+                }
+            });
+        }
+
+        function logout() {
+            $.ajax({
+                url: '/session/logout',
+                method: 'POST',
+                success: function() {
+                    showLoggedOutUI();
+                },
+                error: function() {
+                    showLoggedOutUI();
+                }
+            });
+        }
+
+        function showLoggedInUI(response) {
+            console.log('Showing logged in UI for:', response.user_name);
+            $('#login-btn').hide();
+            $('#logout-btn').show();
+            $('#user-info').show();
+            $('#user-name').text(response.user_name);
+            $('#session-status').html('<span style="color:green;">logged in</span>');
+
+            const sessionDetails = `
+                user_id: ${response.user_id}<br>
+                user_email: ${response.user_email}<br>
+                user_name: ${response.user_name}<br>
+                secret: ${response.secret}
+            `;
+            $('#session-details').html(sessionDetails);
+        }
+
+        function showLoggedOutUI() {
+            console.log('Showing logged out UI');
+            $('#login-btn').show();
+            $('#logout-btn').hide();
+            $('#user-info').hide();
+            $('#session-status').html('<span style="color:red;">logged out</span>');
+            $('#session-details').html('user_id: <br>user_email: <br>user_name: <br>secret: ');
+            hideLoginForm();
+        }
+
+        function showLoginForm() {
+            $('#login-form').dialog('open');
+            $('#username').val('');
+            $('#password').val('');
+            clearError();
+        }
+
+        function hideLoginForm() {
+            $('#login-form').dialog('close');
+            clearError();
+        }
+
+        function showError(message) {
+            $('#login-error').text(message).show();
+        }
+
+        function clearError() {
+            $('#login-error').hide();
+        }
+
+        // Auto-logout on session expiry
+        $(document).ajaxError(function(event, xhr, settings) {
+            if (xhr.status === 401 && settings.url !== '/session/status') {
+                showLoggedOutUI();
+                showError('Session expired. Please log in again.');
+            }
+        });
+    </script>
+</body>
+</html>

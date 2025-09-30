@@ -1,5 +1,5 @@
 import logging
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
 from .base_view import BaseView
 from ..constants import LOG_PREFIX_ENDPOINT
 from ..database import Database
@@ -13,6 +13,7 @@ class SessionBlueprintManager:
     def _register_routes(self):
         self.blueprint.add_url_rule('/login', view_func=SessionLogin.as_view('login'), methods=['POST'])
         self.blueprint.add_url_rule('/logout', view_func=SessionLogout.as_view('logout'), methods=['POST'])
+        self.blueprint.add_url_rule('/status', view_func=SessionStatus.as_view('status'), methods=['GET'])
 
     def get_blueprint(self):
         return self.blueprint
@@ -70,3 +71,26 @@ class SessionLogout(BaseView):
         except Exception as e:
             logging.error(f"{LOG_PREFIX_ENDPOINT}Error during logout: {str(e)}")
             return jsonify({"error": "Logout failed"}), 500
+
+
+class SessionStatus(BaseView):
+    """
+    Check current session status endpoint
+
+    Usage:
+    curl -b cookies.txt http://localhost:5000/session/status
+    """
+    def get(self):
+        logging.info(f"{LOG_PREFIX_ENDPOINT}/session/status endpoint accessed")
+
+        if 'logged_in_user' in session:
+            user_data = session['logged_in_user']
+            return jsonify({
+                'logged_in': True,
+                'user_id': user_data.get('user_id'),
+                'user_email': user_data.get('user_email'),
+                'user_name': user_data.get('user_name'),
+                'secret': user_data.get('secret')
+            }), 200
+        else:
+            return jsonify({'logged_in': False}), 401
