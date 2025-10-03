@@ -80,7 +80,9 @@
             const resource_height = 400;  // Height of each rectangle in pixels
             const resource_number = 20;   // Total number of rectangles to create
             const resource_gap = 20;      // Gap between rectangles in pixels
-            const resource_list_gap = 2;  // Gap between the rectangel and its list in pixels
+            const resource_list_side_gap = 10;
+            const resource_list_top_gap  = 50;
+            const resource_list_bottom_gap  = 5;
 
             // Get container and screen width
             const container = $('#resource-container');
@@ -88,7 +90,7 @@
 
             // Calculate how many rectangles fit per row (including gaps)
             const rectangle_with_gap = resource_width + resource_gap;
-            const rectangles_per_row = Math.floor((screen_width + resource_gap) / rectangle_with_gap);
+            const rectangles_per_row = Math.floor(screen_width / rectangle_with_gap);
 
             // Calculate total rows needed
             const total_rows = Math.ceil(resource_number / rectangles_per_row);
@@ -123,7 +125,6 @@
                     const rectangle = $('<div></div>')
                         .addClass('resource-rectangle')
                         .attr('id', `resource-${rectangle_id}`)
-                        .text(`R${rectangle_id}`)
                         .css({
                             position: 'absolute',
                             left: x_position + 'px',
@@ -132,12 +133,64 @@
                             height: resource_height + 'px'
                         });
 
+                    // Create title element
+                    const title = $('<div></div>')
+                        .addClass('resource-title')
+                        .text(`R${rectangle_id}`)
+                        .css({
+                            position: 'absolute',
+                            left: resource_list_side_gap + 'px',
+                            top: '10px',
+                            width: (resource_width - (2 * resource_list_side_gap)) + 'px',
+                            height: '15px'
+                        });
+
+                    // Create user_list container (smaller than rectangle)
+                    const user_list = $('<div></div>')
+                        .addClass('user-list')
+                        .attr('id', `user-list-${rectangle_id}`)
+                        .css({
+                            position: 'absolute',
+                            bottom: resource_list_side_gap + 'px',
+                            width: (resource_width - (2 * resource_list_side_gap)) + 'px',
+                            height: (resource_height - resource_list_top_gap - resource_list_bottom_gap) + 'px'
+                        });
+
+                    // Add title and user_list to rectangle
+                    rectangle.append(title).append(user_list);
+
+                    // Populate with 30 default users
+                    for (let user_id = 1; user_id <= 30; user_id++) {
+                        addUserToList(rectangle_id, user_id.toString(), user_id);
+                    }
+
                     // Add rectangle to container
                     container.append(rectangle);
                 }
 
                 console.log(`Row ${row + 1}: ${rectangles_in_row} rectangles, starting at x=${start_x}`);
             }
+        }
+
+        // ===== USER LIST MANAGEMENT =====
+        function addUserToList(resource_id, name, id) {
+            const user_list = $(`#user-list-${resource_id}`);
+            const user_item = $('<div></div>')
+                .addClass('user-item')
+                .attr('data-user-id', id)
+                .text(name)
+                .click(function() {
+                    onUserSelected(resource_id, id, name);
+                });
+            user_list.append(user_item);
+        }
+
+        function removeUserFromList(resource_id, id) {
+            $(`#user-list-${resource_id} .user-item[data-user-id="${id}"]`).remove();
+        }
+
+        function onUserSelected(resource_id, user_id, user_name) {
+            console.log(`User selected - Resource: ${resource_id}, User ID: ${user_id}, Name: ${user_name}`);
         }
 
         // ===== WINDOW RESIZE HANDLER =====

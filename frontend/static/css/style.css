@@ -110,3 +110,53 @@ h1 {
     transform: translateY(-5px) scale(1.05); /* Lift and scale on hover */
     box-shadow: 0 8px 25px rgba(255,59,48,0.4); /* Stronger shadow */
 }
+
+/* ===== USER LIST CONTAINER ===== */
+.user-list {
+    overflow-y: auto;
+    background: rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 5px;
+}
+
+/* ===== USER LIST ITEMS ===== */
+.user-item {
+    background: rgba(255,255,255,0.2);
+    border-radius: 4px;
+    padding: 4px 8px;
+    margin: 2px 0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 12px;
+    text-align: center;
+}
+
+.user-item:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+/* ===== SCROLLBAR STYLING ===== */
+.user-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.user-list::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+}
+
+.user-list::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.3);
+    border-radius: 2px;
+}
+
+.user-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.5);
+}
+/* ===== RESOURCE TITLE ===== */
+.resource-title {
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: white;
+}
