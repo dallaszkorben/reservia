@@ -70,17 +70,19 @@
                 hideLoginForm();
             });
 
-            // Generate resource rectangles after page loads
-            generateResourceRectangles();
+            // Initialize ResourcePool
+            ResourcePool.getInstance();
+
+            // Fill with test data
+            fillUpResourcePoolWithTestData();
         });
 
 
 
         // ===== WINDOW RESIZE HANDLER =====
-        // Regenerate rectangles when window is resized
+        // Update layout when window is resized
         $(window).resize(function() {
-            ResourcePool.getInstance().clear();
-            generateResourceRectangles();
+            ResourcePool.getInstance().updateLayout();
         });
 
         function checkSession() {

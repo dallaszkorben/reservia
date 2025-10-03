@@ -136,22 +136,23 @@ h1 {
 }
 
 /* ===== SCROLLBAR STYLING ===== */
+/* Note: Change both width and border-radius values together (radius = width / 2) */
 .user-list::-webkit-scrollbar {
-    width: 4px;
+    width: 7px; /* Change this value */
 }
 
 .user-list::-webkit-scrollbar-track {
-    background: rgba(255,255,255,0.1);
-    border-radius: 2px;
+    background: rgba(0,122,255,0.1);
+    border-radius: 3.5px; /* Keep this = width / 2 */
 }
 
 .user-list::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.3);
-    border-radius: 2px;
+    background: rgba(0,122,255,0.6);
+    border-radius: 3.5px; /* Keep this = width / 2 */
 }
 
 .user-list::-webkit-scrollbar-thumb:hover {
-    background: rgba(255,255,255,0.5);
+    background: rgba(0,122,255,0.8);
 }
 /* ===== RESOURCE TITLE ===== */
 .resource-title {
