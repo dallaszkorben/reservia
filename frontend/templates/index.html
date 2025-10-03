@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='js/jquery-ui/jquery-ui.min.css') }}">
     <script src="{{ url_for('static', filename='js/jquery-ui/jquery-ui.min.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/reservia.js') }}"></script>
 </head>
 <body>
     <div id="header">
@@ -73,131 +74,13 @@
             generateResourceRectangles();
         });
 
-        // ===== RESOURCE RECTANGLE GENERATION =====
-        function generateResourceRectangles() {
-            // Configuration variables
-            const resource_width = 200;   // Width of each rectangle in pixels
-            const resource_height = 400;  // Height of each rectangle in pixels
-            const resource_number = 20;   // Total number of rectangles to create
-            const resource_gap = 20;      // Gap between rectangles in pixels
-            const resource_list_side_gap = 10;
-            const resource_list_top_gap  = 50;
-            const resource_list_bottom_gap  = 5;
 
-            // Get container and screen width
-            const container = $('#resource-container');
-            const screen_width = $(window).width() - 40; // Account for body padding
-
-            // Calculate how many rectangles fit per row (including gaps)
-            const rectangle_with_gap = resource_width + resource_gap;
-            const rectangles_per_row = Math.floor(screen_width / rectangle_with_gap);
-
-            // Calculate total rows needed
-            const total_rows = Math.ceil(resource_number / rectangles_per_row);
-
-            // Set container height to fit all rows (including vertical gaps)
-            const row_with_gap = resource_height + resource_gap;
-            container.height((total_rows * row_with_gap) - resource_gap + 40); // Remove last gap, add padding
-
-            console.log(`Creating ${resource_number} rectangles in ${total_rows} rows (${rectangles_per_row} per row)`);
-
-            // ===== CREATE RECTANGLES ROW BY ROW =====
-            for (let row = 0; row < total_rows; row++) {
-                // Calculate rectangles in this row
-                const start_index = row * rectangles_per_row;
-                const end_index = Math.min(start_index + rectangles_per_row, resource_number);
-                const rectangles_in_row = end_index - start_index;
-
-                // ===== SYMMETRIC HORIZONTAL POSITIONING WITH GAPS =====
-                // Calculate total width including gaps between rectangles
-                const total_row_width = (rectangles_in_row * resource_width) + ((rectangles_in_row - 1) * resource_gap);
-                const start_x = (screen_width - total_row_width) / 2;
-
-                // Create rectangles for this row
-                for (let i = 0; i < rectangles_in_row; i++) {
-                    const rectangle_id = start_index + i + 1; // 1-based numbering
-
-                    // Calculate position with gaps
-                    const x_position = start_x + (i * (resource_width + resource_gap));
-                    const y_position = (row * (resource_height + resource_gap)) + 20; // Add top padding
-
-                    // Create rectangle element
-                    const rectangle = $('<div></div>')
-                        .addClass('resource-rectangle')
-                        .attr('id', `resource-${rectangle_id}`)
-                        .css({
-                            position: 'absolute',
-                            left: x_position + 'px',
-                            top: y_position + 'px',
-                            width: resource_width + 'px',
-                            height: resource_height + 'px'
-                        });
-
-                    // Create title element
-                    const title = $('<div></div>')
-                        .addClass('resource-title')
-                        .text(`R${rectangle_id}`)
-                        .css({
-                            position: 'absolute',
-                            left: resource_list_side_gap + 'px',
-                            top: '10px',
-                            width: (resource_width - (2 * resource_list_side_gap)) + 'px',
-                            height: '15px'
-                        });
-
-                    // Create user_list container (smaller than rectangle)
-                    const user_list = $('<div></div>')
-                        .addClass('user-list')
-                        .attr('id', `user-list-${rectangle_id}`)
-                        .css({
-                            position: 'absolute',
-                            bottom: resource_list_side_gap + 'px',
-                            width: (resource_width - (2 * resource_list_side_gap)) + 'px',
-                            height: (resource_height - resource_list_top_gap - resource_list_bottom_gap) + 'px'
-                        });
-
-                    // Add title and user_list to rectangle
-                    rectangle.append(title).append(user_list);
-
-                    // Populate with 30 default users
-                    for (let user_id = 1; user_id <= 30; user_id++) {
-                        addUserToList(rectangle_id, user_id.toString(), user_id);
-                    }
-
-                    // Add rectangle to container
-                    container.append(rectangle);
-                }
-
-                console.log(`Row ${row + 1}: ${rectangles_in_row} rectangles, starting at x=${start_x}`);
-            }
-        }
-
-        // ===== USER LIST MANAGEMENT =====
-        function addUserToList(resource_id, name, id) {
-            const user_list = $(`#user-list-${resource_id}`);
-            const user_item = $('<div></div>')
-                .addClass('user-item')
-                .attr('data-user-id', id)
-                .text(name)
-                .click(function() {
-                    onUserSelected(resource_id, id, name);
-                });
-            user_list.append(user_item);
-        }
-
-        function removeUserFromList(resource_id, id) {
-            $(`#user-list-${resource_id} .user-item[data-user-id="${id}"]`).remove();
-        }
-
-        function onUserSelected(resource_id, user_id, user_name) {
-            console.log(`User selected - Resource: ${resource_id}, User ID: ${user_id}, Name: ${user_name}`);
-        }
 
         // ===== WINDOW RESIZE HANDLER =====
         // Regenerate rectangles when window is resized
         $(window).resize(function() {
-            $('#resource-container').empty(); // Clear existing rectangles
-            generateResourceRectangles();     // Recreate with new layout
+            ResourcePool.getInstance().clear();
+            generateResourceRectangles();
         });
 
         function checkSession() {
