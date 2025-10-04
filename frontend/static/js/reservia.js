@@ -5,21 +5,29 @@ class LayoutManager {
         const rectangle_with_gap = config.resource_width + config.resource_gap;
         const rectangles_per_row = Math.floor(screen_width / rectangle_with_gap);
         const total_rows = Math.max(1, Math.ceil(resource_count / rectangles_per_row));
-        
-        return { rectangles_per_row, total_rows, screen_width };
+
+        return { rectangles_per_row, total_rows, screen_width, resource_count };
     }
 
-    static getPosition(index, layout, config) {
+    static getPosition(index, layout, config, alignment = 'center') {
         const row = Math.floor(index / layout.rectangles_per_row);
         const col = index % layout.rectangles_per_row;
-        
-        const rectangles_in_row = Math.min(layout.rectangles_per_row, layout.total_rows * layout.rectangles_per_row - (row * layout.rectangles_per_row));
-        const total_row_width = (rectangles_in_row * config.resource_width) + ((rectangles_in_row - 1) * config.resource_gap);
-        const start_x = (layout.screen_width - total_row_width) / 2;
-        
+
+        const rectangles_in_current_row = Math.min(layout.rectangles_per_row, layout.resource_count - (row * layout.rectangles_per_row));
+        const total_row_width = (rectangles_in_current_row * config.resource_width) + ((rectangles_in_current_row - 1) * config.resource_gap);
+
+        let start_x;
+        if (alignment === 'center') {
+            start_x = (layout.screen_width - total_row_width) / 2;
+        } else if (alignment === 'right') {
+            start_x = layout.screen_width - total_row_width;
+        } else { // 'left'
+            start_x = 0;
+        }
+
         const x_position = start_x + (col * (config.resource_width + config.resource_gap));
         const y_position = (row * (config.resource_height + config.resource_gap)) + 20;
-        
+
         return { x: x_position, y: y_position };
     }
 }
@@ -28,44 +36,47 @@ class LayoutManager {
 class ResourcePool {
     static instance = null;
 
-    constructor() {
+    constructor(alignment = 'center') {
         if (ResourcePool.instance) {
             return ResourcePool.instance;
         }
         this.container = $('#resource-container');
         this.resources = [];
         this.listeners = {};
+        this.alignment = alignment;
         ResourcePool.instance = this;
     }
 
-    static getInstance() {
+    static getInstance(alignment = 'center') {
         if (!ResourcePool.instance) {
-            ResourcePool.instance = new ResourcePool();
+            ResourcePool.instance = new ResourcePool(alignment);
+        } else if (alignment !== 'center') {
+            ResourcePool.instance.alignment = alignment;
         }
         return ResourcePool.instance;
     }
 
-    addResource(resource) {
-        this.resources.push(resource);
-        const view = new ResourceView(resource, this.container, this);
-        resource.setView(view);
+    addResource(resource_card) {
+        this.resources.push(resource_card);
+        const view = new ResourceView(resource_card, this.container, this);
+        resource_card.setView(view);
     }
 
     clear() {
-        this.resources.forEach(resource => resource.view?.destroy());
+        this.resources.forEach(resource_card => resource_card.view?.destroy());
         this.container.empty();
         this.resources = [];
     }
 
     updateLayout() {
-        const config = Resource.config;
+        const config = ResourceCard.config;
         const layout = LayoutManager.calculateLayout(this.resources.length, config);
-        
+
         this.container.height((layout.total_rows * (config.resource_height + config.resource_gap)) - config.resource_gap + 40);
-        
-        this.resources.forEach((resource, index) => {
-            const position = LayoutManager.getPosition(index, layout, config);
-            resource.view?.setPosition(position.x, position.y);
+
+        this.resources.forEach((resource_card, index) => {
+            const position = LayoutManager.getPosition(index, layout, config, this.alignment);
+            resource_card.view?.setPosition(position.x, position.y);
         });
     }
 
@@ -93,8 +104,8 @@ class ResourcePool {
     }
 }
 
-// ===== RESOURCE CLASS (Data Model) =====
-class Resource {
+// ===== RESOURCE CARD CLASS (Data Model) =====
+class ResourceCard {
     static config = {
         resource_width: 200,
         resource_height: 400,
@@ -133,8 +144,8 @@ class Resource {
 
 // ===== RESOURCE VIEW (DOM Management) =====
 class ResourceView {
-    constructor(resource, container, pool) {
-        this.resource = resource;
+    constructor(resource_card, container, pool) {
+        this.resource_card = resource_card;
         this.container = container;
         this.pool = pool;
         this.element = this.createElement();
@@ -142,11 +153,11 @@ class ResourceView {
     }
 
     createElement() {
-        const config = Resource.config;
-        const id = this.resource.id;
+        const config = ResourceCard.config;
+        const id = this.resource_card.id;
 
         const rectangle = $('<div></div>')
-            .addClass('resource-rectangle')
+            .addClass('resource-card')
             .attr('data-resource-id', id)
             .css({
                 position: 'absolute',
@@ -193,9 +204,9 @@ class ResourceView {
             .text(user.name)
             .css('font-size', fontSize + 'px')
             .click(() => {
-                this.resource.onUserSelected(user.id, user.name);
+                this.resource_card.onUserSelected(user.id, user.name);
                 this.pool.dispatchEvent('user_selected', {
-                    resource_id: this.resource.id,
+                    resource_id: this.resource_card.id,
                     user_id: user.id,
                     user_name: user.name
                 });
@@ -222,8 +233,8 @@ class ResourceView {
 
 
 // ===== TEST DATA GENERATION =====
-function fillUpResourcePoolWithTestData() {
-    const pool = ResourcePool.getInstance();
+function testToFillUpUserListAndResourcesInLoop() {
+    const pool = ResourcePool.getInstance('center');
 
     // Register event listeners
     pool.addEventListener('user_selected', (data) => {
@@ -234,12 +245,12 @@ function fillUpResourcePoolWithTestData() {
         console.log(`Resource Handler - Resource ID: ${data.resource_id}`);
     });
 
-    for (let i = 1; i <= 20; i++) {
-        const resource = new Resource(i, 20);
-        pool.addResource(resource);
+    for (let i = 1; i <= 15; i++) {
+        const resource_card = new ResourceCard(i, 20);
+        pool.addResource(resource_card);
 
         for (let j = 1; j < i; j++) {
-            resource.addUser(j.toString(), j);
+            resource_card.addUser(j.toString(), j);
         }
     }
 

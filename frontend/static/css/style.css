@@ -88,9 +88,9 @@ h1 {
     padding: 20px 0; /* Vertical padding */
 }
 
-/* ===== RESOURCE RECTANGLES ===== */
-/* Individual resource rectangle styling */
-.resource-rectangle {
+/* ===== RESOURCE CARDS ===== */
+/* Individual resource card styling */
+.resource-card {
     background: linear-gradient(135deg, #FF3B30, #FF9500); /* Red to orange gradient */
     border-radius: 12px; /* Rounded corners */
     border: 2px solid rgba(255,255,255,0.3); /* White border */
@@ -105,8 +105,8 @@ h1 {
     transition: all 0.3s ease; /* Smooth animations */
 }
 
-/* Hover effect for resource rectangles */
-.resource-rectangle:hover {
+/* Hover effect for resource cards */
+.resource-card:hover {
     transform: translateY(-5px) scale(1.05); /* Lift and scale on hover */
     box-shadow: 0 8px 25px rgba(255,59,48,0.4); /* Stronger shadow */
 }
