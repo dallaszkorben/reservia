@@ -1,4 +1,6 @@
-# Project Context for Amazon Q Sessions
+# Backend Context for Amazon Q
+
+> This document provides complete backend architecture context for Amazon Q to reproduce the project from scratch.
 
 ## Project Overview
 **Project Name**: Reservia - Resource Reservation Management System

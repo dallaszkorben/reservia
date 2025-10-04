@@ -31,10 +31,12 @@ reservia/
 │   └── static/          # CSS, JavaScript, images
 ├── tests/
 │   └── test_database.py # Database functionality tests
-├── docs/                # Documentation
+├── docs/                # General documentation
+├── amazonq-context/     # Amazon Q session context files
+│   ├── backend_context.md   # Backend architecture and setup
+│   └── frontend_context.md  # Frontend architecture and components
 ├── app.py              # Main Flask application entry point
 ├── requirements.txt    # Python dependencies
-├── project_context.md  # Amazon Q session context
 └── README.md           # This file
 ```
 
@@ -125,7 +127,7 @@ python app.py
 - Structured logging with component prefixes
 - Both file and console output
 
-### Architecture
+### Backend Architecture
 - Object-oriented design with class-based views
 - Singleton database pattern
 - Blueprint-based modular endpoint organization
@@ -133,6 +135,15 @@ python app.py
 - Reservation queue system with auto-approval logic
 - Thread-safe database operations with locking
 - Google Style documentation standards
+
+### Frontend Architecture
+- **LayoutManager**: Static utility class for responsive grid positioning calculations
+- **ResourcePool**: Singleton managing resource collection and layout updates
+- **Resource**: Pure data model with user management and configurable font sizes
+- **ResourceView**: DOM rendering and event handling with proper separation of concerns
+- Clean separation between data models and view components
+- Independent Resource class with static configuration
+- Dependency injection for view components
 
 ## Usage
 
@@ -261,7 +272,26 @@ Expected response:
 - Proper HTTP status codes (401, 403, 404, 409)
 - Comprehensive logging with user and resource details
 
+### Frontend Features
+- **Responsive Resource Grid**: Automatic layout calculation based on screen width
+- **Scrollable User Lists**: Apple-styled blue scrollbars with overflow handling
+- **Interactive Resource Management**: Click handling for both resources and individual users
+- **Customizable Font Sizes**: Per-resource user list font size configuration
+- **Real-time Layout Updates**: Window resize support with automatic repositioning
+- **Event System**: Separate event handlers for resource selection and user selection
+
+### User Interface Components
+- **Resource Rectangles**: 200x400px containers with titles and user lists
+- **User List Items**: Scrollable containers with customizable font sizes (default 20px)
+- **Apple Design System**: Blue gradient themes and glass effects
+- **Responsive Layout**: Centered grid with proper spacing and gaps
+
+### Event Handling
+- **Resource Click**: Triggers `ResourcePool.onResourceSelected(resource_id)`
+- **User Click**: Triggers `Resource.onUserSelected(user_id, user_name)`
+- **Proper Event Separation**: No event bubbling conflicts between resource and user clicks
+
 ## Features In Development
-- Frontend templates and forms
 - Enhanced resource management
 - User dashboard and reservation history
+- Backend integration for frontend components
