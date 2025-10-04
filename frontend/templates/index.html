@@ -9,6 +9,7 @@
     <script src="{{ url_for('static', filename='js/jquery-ui/jquery-ui.min.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="{{ url_for('static', filename='js/reservia.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/resource_manager.js') }}"></script>
     <script src="{{ url_for('static', filename='js/test_frontend.js') }}"></script>
 </head>
 <body>
@@ -73,8 +74,8 @@
             // Initialize ResourcePool
             ResourcePool.getInstance();
 
-            // Fill with test data
-            testSimulateUserOperations();
+            // Load resources from server
+            loadResourcesFromServer();
         });
 
 

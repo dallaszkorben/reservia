@@ -297,6 +297,15 @@ Expected response:
 {"message": "Resource created successfully", "resource_id": 1}
 ```
 
+#### Get All Resources (Admin Only - Requires Session Cookie)
+```bash
+curl -H "Content-Type: application/json" -X GET -b cookies.txt http://localhost:5000/admin/resources
+```
+Expected response:
+```json
+{"message": "Resources retrieved successfully", "resources": [{"id": 1, "name": "Meeting Room", "comment": "Conference room for 10 people"}], "count": 1}
+```
+
 #### Request Reservation (User Login Required)
 ```bash
 curl -H "Content-Type: application/json" -X POST -b cookies.txt -d '{"resource_id": 1}' http://localhost:5000/reservation/request
