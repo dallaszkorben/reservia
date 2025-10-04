@@ -9,7 +9,8 @@ function testLookOfTheResourceElements() {
         pool.addResource(resource_card);
 
         for (let j = 1; j < i; j++) {
-            resource_card.addUser(j.toString(), j);
+            const currentDate = new Date().toISOString();
+            resource_card.addUser(j.toString(), j, 'approved', currentDate, currentDate);
         }
     }
 
@@ -55,7 +56,8 @@ function testSimulateUserOperations() {
         const userExists = resource.users.some(u => u.id === currentUserId);
 
         if (!userExists) {
-            resource.addUser(currentUserId.toString(), currentUserId);
+            const currentDate = new Date().toISOString();
+            resource.addUser(currentUserId.toString(), currentUserId, 'approved', currentDate, currentDate);
             console.log(`ADDED - Resource: ${data.resource_name} (${data.resource_id}), User: ${currentUserId} (${currentUserId})`);
         }
     });

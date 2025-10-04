@@ -126,8 +126,8 @@ class ResourceCard {
         this.view = view;
     }
 
-    addUser(name, id) {
-        const user = { name, id };
+    addUser(name, id, status, request_date, approved_date) {
+        const user = { name, id, status, request_date, approved_date };
         this.users.push(user);
         this.view?.addUser(user, this.list_font_size);
         this.view?.updateBackgroundColor();
@@ -141,7 +141,7 @@ class ResourceCard {
 
     onUserSelected(user_id, user_name) {
         // Resource doesn't know about ResourcePool - view handles event delegation
-        console.log(`User selected - Resource: ${this.name} (${this.id}), User: ${user_name} (${user_id})`);
+        //console.log(`User selected - Resource: ${this.name} (${this.id}), User: ${user_name} (${user_id})`);
     }
 }
 
@@ -178,7 +178,7 @@ class ResourceView {
 
         const title = $('<div></div>')
             .addClass('resource-title')
-            .text(`R${id}`)
+            .text(this.resource_card.name)
             .css({
                 position: 'absolute',
                 left: config.resource_list_side_gap + 'px',
@@ -203,18 +203,22 @@ class ResourceView {
 
     updateBackgroundColor() {
         const isEmpty = this.resource_card.users.length === 0;
-        const background = isEmpty ? 
-            'linear-gradient(135deg, #34C759 0%, #32D74B 30%, #5AC8FA 100%)' : 
+        const background = isEmpty ?
+            'linear-gradient(135deg, #34C759 0%, #32D74B 30%, #5AC8FA 100%)' :
             'linear-gradient(135deg, #FFB366, #FFCC99)';
         this.element.css('background', background);
     }
 
     addUser(user, fontSize) {
-        const isFirstUser = this.resource_card.users.length === 1;
-        const backgroundColor = isFirstUser ? 
-            'linear-gradient(135deg, #FF3B30, #FF6B6B)' :  // Red gradient for first user (active/approved)
-            'linear-gradient(135deg, #007AFF, #5AC8FA)';   // Blue gradient for queued users
-        
+        let backgroundColor;
+        if (user.status === 'approved') {
+            backgroundColor = 'linear-gradient(135deg, #FF3B30, #FF6B6B)';  // Red gradient for approved
+        } else if (user.status === 'requested') {
+            backgroundColor = 'linear-gradient(135deg, #007AFF, #5AC8FA)';   // Blue gradient for requested
+        } else {
+            backgroundColor = 'linear-gradient(135deg, #8E8E93, #AEAEB2)';   // Gray gradient for other status
+        }
+
         const user_item = $('<div></div>')
             .addClass('user-item')
             .attr('data-user-id', user.id)

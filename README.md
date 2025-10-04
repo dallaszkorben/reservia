@@ -111,8 +111,10 @@ python app.py
 - **GET /info/get_version** - Application version information
 - **POST /session/login** - User login (requires JSON payload)
 - **POST /session/logout** - User logout
+- **GET /session/status** - Check current session status
 - **POST /admin/user/add** - Add new user (requires admin login and JSON payload)
 - **POST /admin/resource/add** - Add new resource (requires admin login and JSON payload)
+- **GET /admin/resources** - Get all resources (requires admin login)
 - **POST /reservation/request** - Request resource reservation (requires user login)
 - **GET /reservation/active** - Get all active reservations (requires user login)
 - **POST /reservation/cancel** - Cancel user's reservation (requires user login)
@@ -317,7 +319,7 @@ Expected response:
 
 #### Get Active Reservations (User Login Required)
 ```bash
-curl -H "Content-Type: application/json" -X GET -b cookies.txt http://localhost:5000/reservation/active
+curl -H "Content-Type: application/json" -X GET -b cookies.txt "http://localhost:5000/reservation/active?resource_id=1"
 ```
 Expected response:
 ```json
@@ -340,6 +342,19 @@ curl -H "Content-Type: application/json" -X POST -b cookies.txt -d '{"resource_i
 Expected response:
 ```json
 {"message": "Reservation released successfully", "reservation_id": 1, "resource_id": 1, "released_date": "2023-12-21T11:00:15+01:00"}
+```
+
+#### Check Session Status (Use Session Cookie)
+```bash
+curl -b cookies.txt http://localhost:5000/session/status
+```
+Expected response (logged in):
+```json
+{"logged_in": true, "user_id": 1, "user_email": "admin@example.com", "user_name": "admin", "is_admin": true}
+```
+Expected response (logged out):
+```json
+{"logged_in": false}
 ```
 
 ### Session Management Workflow

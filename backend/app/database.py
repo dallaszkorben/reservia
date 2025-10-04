@@ -572,7 +572,7 @@ class Database:
                 print(f"Reservation {r.id}: {r.user.name} -> {r.resource.name} ({status})")
         """
         with self.lock:
-            reservations = self.session.query(ReservationLifecycle).filter(
+            reservations = self.session.query(ReservationLifecycle).join(User).join(Resource).filter(
                 ReservationLifecycle.resource_id == resource_id,
                 ReservationLifecycle.cancelled_date.is_(None),
                 ReservationLifecycle.released_date.is_(None)

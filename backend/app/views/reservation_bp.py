@@ -157,7 +157,7 @@ class ReleaseReservationView(BaseView):
 class GetActiveReservationsView(BaseView):
     """Handles GET requests for retrieving active reservations for a specific resource.
 
-    Requires user authentication and resource_id query parameter. Returns non-cancelled, 
+    Requires user authentication and resource_id query parameter. Returns non-cancelled,
     non-released reservations for the specified resource with user and resource details.
 
     Returns:
@@ -190,6 +190,11 @@ class GetActiveReservationsView(BaseView):
 
             reservation_list = []
             for r in reservations:
+#                # Check if relationships are loaded properly
+#                if not r.user or not r.resource:
+#                    logging.error(f"{LOG_PREFIX_ENDPOINT}Missing user or resource relationship for reservation {r.id}")
+#                    continue
+
                 reservation_list.append({
                     "id": r.id,
                     "user_id": r.user_id,
