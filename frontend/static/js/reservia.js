@@ -40,7 +40,7 @@ class ResourcePool {
         if (ResourcePool.instance) {
             return ResourcePool.instance;
         }
-        this.container = $('#resource-container');
+        this.container = $('#resource-pool-container');
         this.resources = [];
         this.listeners = {};
         this.alignment = alignment;
@@ -72,7 +72,7 @@ class ResourcePool {
         const config = ResourceCard.config;
         const layout = LayoutManager.calculateLayout(this.resources.length, config);
 
-        this.container.height((layout.total_rows * (config.resource_height + config.resource_gap)) - config.resource_gap + 40);
+        this.container.height((layout.total_rows * (config.resource_height + config.resource_gap)) - config.resource_gap + 5);
 
         this.resources.forEach((resource_card, index) => {
             const position = LayoutManager.getPosition(index, layout, config, this.alignment);
@@ -129,11 +129,13 @@ class ResourceCard {
         const user = { name, id };
         this.users.push(user);
         this.view?.addUser(user, this.list_font_size);
+        this.view?.updateBackgroundColor();
     }
 
     removeUser(id) {
         this.users = this.users.filter(user => user.id !== id);
         this.view?.removeUser(id);
+        this.view?.updateBackgroundColor();
     }
 
     onUserSelected(user_id, user_name) {
@@ -149,6 +151,7 @@ class ResourceView {
         this.container = container;
         this.pool = pool;
         this.element = this.createElement();
+        this.updateBackgroundColor();
         this.container.append(this.element);
     }
 
@@ -197,12 +200,28 @@ class ResourceView {
         return rectangle;
     }
 
+    updateBackgroundColor() {
+        const isEmpty = this.resource_card.users.length === 0;
+        const background = isEmpty ? 
+            'linear-gradient(135deg, #34C759 0%, #32D74B 30%, #5AC8FA 100%)' : 
+            'linear-gradient(135deg, #FFB366, #FFCC99)';
+        this.element.css('background', background);
+    }
+
     addUser(user, fontSize) {
+        const isFirstUser = this.resource_card.users.length === 1;
+        const backgroundColor = isFirstUser ? 
+            'linear-gradient(135deg, #FF3B30, #FF6B6B)' :  // Red gradient for first user (active/approved)
+            'linear-gradient(135deg, #007AFF, #5AC8FA)';   // Blue gradient for queued users
+        
         const user_item = $('<div></div>')
             .addClass('user-item')
             .attr('data-user-id', user.id)
             .text(user.name)
-            .css('font-size', fontSize + 'px')
+            .css({
+                'font-size': fontSize + 'px',
+                'background': backgroundColor
+            })
             .click(() => {
                 this.resource_card.onUserSelected(user.id, user.name);
                 this.pool.dispatchEvent('user_selected', {
@@ -261,7 +280,7 @@ function testSimulateUserOperations() {
     const userInput = $('<input type="number" id="current-user" value="1" min="1">');
 
     userContainer.append(userLabel).append(userInput);
-    $('#resource-container').after(userContainer);
+    $('#resource-pool-container').after(userContainer);
 
     // Register event listeners
     pool.addEventListener('user_selected', (data) => {
