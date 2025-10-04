@@ -34,6 +34,7 @@ class ResourcePool {
         }
         this.container = $('#resource-container');
         this.resources = [];
+        this.listeners = {};
         ResourcePool.instance = this;
     }
 
@@ -68,8 +69,27 @@ class ResourcePool {
         });
     }
 
+    addEventListener(event, callback) {
+        if (!this.listeners[event]) {
+            this.listeners[event] = [];
+        }
+        this.listeners[event].push(callback);
+    }
+
+    removeEventListener(event, callback) {
+        if (this.listeners[event]) {
+            this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
+        }
+    }
+
+    dispatchEvent(event, data) {
+        if (this.listeners[event]) {
+            this.listeners[event].forEach(callback => callback(data));
+        }
+    }
+
     onResourceSelected(resource_id) {
-        console.log(`Resource selected - Resource ID: ${resource_id}`);
+        this.dispatchEvent('resource_selected', { resource_id });
     }
 }
 
@@ -106,7 +126,11 @@ class Resource {
     }
 
     onUserSelected(user_id, user_name) {
-        console.log(`User selected - Resource: ${this.id}, User ID: ${user_id}, Name: ${user_name}`);
+        ResourcePool.getInstance().dispatchEvent('user_selected', {
+            resource_id: this.id,
+            user_id,
+            user_name
+        });
     }
 }
 
@@ -197,6 +221,15 @@ class ResourceView {
 // ===== TEST DATA GENERATION =====
 function fillUpResourcePoolWithTestData() {
     const pool = ResourcePool.getInstance();
+
+    // Register event listeners
+    pool.addEventListener('user_selected', (data) => {
+        console.log(`User Handler - Resource: ${data.resource_id}, User: ${data.user_id} (${data.user_name})`);
+    });
+
+    pool.addEventListener('resource_selected', (data) => {
+        console.log(`Resource Handler - Resource ID: ${data.resource_id}`);
+    });
 
     for (let i = 1; i <= 20; i++) {
         const resource = new Resource(i, 20);
