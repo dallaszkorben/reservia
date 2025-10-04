@@ -233,19 +233,10 @@ class ResourceView {
 
 
 // ===== TEST DATA GENERATION =====
-function testToFillUpUserListAndResourcesInLoop() {
+function testLookOfTheResourceElements() {
     const pool = ResourcePool.getInstance('center');
 
-    // Register event listeners
-    pool.addEventListener('user_selected', (data) => {
-        console.log(`User Handler - Resource: ${data.resource_id}, User: ${data.user_id} (${data.user_name})`);
-    });
-
-    pool.addEventListener('resource_selected', (data) => {
-        console.log(`Resource Handler - Resource ID: ${data.resource_id}`);
-    });
-
-    for (let i = 1; i <= 15; i++) {
+    for (let i = 1; i <= 3; i++) {
         const resource_card = new ResourceCard(i, 20);
         pool.addResource(resource_card);
 
@@ -255,4 +246,50 @@ function testToFillUpUserListAndResourcesInLoop() {
     }
 
     pool.updateLayout();
+}
+
+function testSimulateUserOperations() {
+    const pool = ResourcePool.getInstance('center');
+
+    // Create user input container
+    const userContainer = $('<div></div>').css({
+        'margin-top': '20px',
+        'text-align': 'center'
+    });
+
+    const userLabel = $('<span>User: </span>');
+    const userInput = $('<input type="number" id="current-user" value="1" min="1">');
+
+    userContainer.append(userLabel).append(userInput);
+    $('#resource-container').after(userContainer);
+
+    // Register event listeners
+    pool.addEventListener('user_selected', (data) => {
+        const currentUserId = parseInt($('#current-user').val());
+        if (data.user_id === currentUserId) {
+            const resource = pool.resources.find(r => r.id === data.resource_id);
+            const isFirstUser = resource.users[0]?.id === currentUserId;
+
+            resource.removeUser(currentUserId);
+
+            if (isFirstUser) {
+                console.log(`RELEASED - Resource: R${data.resource_id}, User: ${currentUserId}`);
+            } else {
+                console.log(`CANCELLED - Resource: R${data.resource_id}, User: ${currentUserId}`);
+            }
+        }
+    });
+
+    pool.addEventListener('resource_selected', (data) => {
+        const currentUserId = parseInt($('#current-user').val());
+        const resource = pool.resources.find(r => r.id === data.resource_id);
+        const userExists = resource.users.some(u => u.id === currentUserId);
+
+        if (!userExists) {
+            resource.addUser(currentUserId.toString(), currentUserId);
+            console.log(`ADDED - Resource: R${data.resource_id}, User: ${currentUserId}`);
+        }
+    });
+
+    testLookOfTheResourceElements();
 }
