@@ -330,9 +330,14 @@ class Database:
         """
         # Only admin can retrieve all resources
         current_user = self.get_current_user()
-        if not current_user or not current_user.get('is_admin', False):
-            logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized resource retrieval attempt")
-            return False, None, "UNAUTHORIZED", "Admin access required"
+#        if not current_user or not current_user.get('is_admin', False):
+#            logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized resource retrieval attempt")
+#            return False, None, "UNAUTHORIZED", "Admin access required"
+
+        current_user = self.get_current_user()
+        if not current_user:
+            logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized reservation cancellation - user not logged in")
+            return False, None, "AUTH_REQUIRED", "User authentication required"
 
         with self.lock:
             resources = self.session.query(Resource).all()

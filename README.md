@@ -191,17 +191,17 @@ Frontend testing is done through browser-based interactive testing:
    ```
 
 2. **Modify `frontend/templates/index.html` for testing** (if needed):
-   
+
    The HTML already includes test initialization. To change test behavior, modify the JavaScript in the `$(document).ready()` function:
-   
+
    ```javascript
    // Current default test (interactive user simulation)
    testSimulateUserOperations();
-   
+
    // Alternative: Visual layout test with sample data
    // testLookOfTheResourceElements();
    ```
-   
+
    **Available test functions**:
    - `testSimulateUserOperations()` - Interactive testing with user input field
    - `testLookOfTheResourceElements()` - Populates 15 resources with sample data for layout testing
@@ -228,7 +228,7 @@ Frontend testing is done through browser-based interactive testing:
    - Check network requests for API calls
    - Test session management and authentication
 
-**Frontend Test Files**: 
+**Frontend Test Files**:
 - `frontend/static/js/test_frontend.js` - Interactive test functions
 - `frontend/templates/index.html` - Includes test initialization
 - Test functions: `testSimulateUserOperations()`, `testLookOfTheResourceElements()`
@@ -299,7 +299,7 @@ Expected response:
 {"message": "Resource created successfully", "resource_id": 1}
 ```
 
-#### Get All Resources (Admin Only - Requires Session Cookie)
+#### Get All Resources (User Login Required)
 ```bash
 curl -H "Content-Type: application/json" -X GET -b cookies.txt http://localhost:5000/admin/resources
 ```

@@ -78,7 +78,7 @@ reservia/
 - `/session/login` - User authentication with session creation
 - `/session/logout` - Session termination with cookie invalidation
 - `/admin/user/add` - Admin-only user creation
-- `/admin/resource/add` - Admin-only resource creation
+- `/admin/resource/add` - Resource creation
 - `/reservation/request` - Create reservation requests with auto-approval
 - `/reservation/active` - Get all active reservations
 - `/reservation/cancel` - Cancel user's reservation request
