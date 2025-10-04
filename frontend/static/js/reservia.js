@@ -47,7 +47,7 @@ class ResourcePool {
 
     addResource(resource) {
         this.resources.push(resource);
-        const view = new ResourceView(resource, this.container);
+        const view = new ResourceView(resource, this.container, this);
         resource.setView(view);
     }
 
@@ -126,19 +126,17 @@ class Resource {
     }
 
     onUserSelected(user_id, user_name) {
-        ResourcePool.getInstance().dispatchEvent('user_selected', {
-            resource_id: this.id,
-            user_id,
-            user_name
-        });
+        // Resource doesn't know about ResourcePool - view handles event delegation
+        console.log(`User selected - Resource: ${this.id}, User ID: ${user_id}, Name: ${user_name}`);
     }
 }
 
 // ===== RESOURCE VIEW (DOM Management) =====
 class ResourceView {
-    constructor(resource, container) {
+    constructor(resource, container, pool) {
         this.resource = resource;
         this.container = container;
+        this.pool = pool;
         this.element = this.createElement();
         this.container.append(this.element);
     }
@@ -159,7 +157,7 @@ class ResourceView {
             })
             .click((e) => {
                 if (!$(e.target).hasClass('user-item')) {
-                    ResourcePool.getInstance().onResourceSelected(id);
+                    this.pool.onResourceSelected(id);
                 }
             });
 
@@ -196,6 +194,11 @@ class ResourceView {
             .css('font-size', fontSize + 'px')
             .click(() => {
                 this.resource.onUserSelected(user.id, user.name);
+                this.pool.dispatchEvent('user_selected', {
+                    resource_id: this.resource.id,
+                    user_id: user.id,
+                    user_name: user.name
+                });
             });
         this.user_list.append(user_item);
     }
