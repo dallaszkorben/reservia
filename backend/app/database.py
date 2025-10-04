@@ -3,7 +3,7 @@ import logging
 import hashlib
 import threading
 from pathlib import Path
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from .constants import LOG_PREFIX_DATABASE
@@ -18,6 +18,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     email = Column(String, unique=True, nullable=False)
     name = Column(String, unique=True, nullable=False)
+    is_admin = Column(Boolean, default=False, nullable=False)
 
 class Resource(Base):
     __tablename__ = 'resources'
@@ -87,7 +88,7 @@ class Database:
         with self.lock:
             existing_admin = self.session.query(User).filter(User.email == "admin@admin.se").first()
             if not existing_admin:
-                admin_user = User(name="admin", email="admin@admin.se")
+                admin_user = User(name="admin", email="admin@admin.se", is_admin=True)
                 self.session.add(admin_user)
                 self.session.flush()
 
@@ -145,7 +146,7 @@ class Database:
                 'user_id': user.id,
                 'user_email': user.email,
                 'user_name': user.name,
-                'secret': 'my_secret'
+                'is_admin': bool(user.is_admin)
             }
             session.permanent = True
 
@@ -198,7 +199,7 @@ class Database:
         """
         # Only admin can create users
         current_user = self.get_current_user()
-        if not current_user or current_user['user_name'] != 'admin':
+        if not current_user or not current_user.get('is_admin', False):
             logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized user creation attempt")
             return False, None, "UNAUTHORIZED", "Admin access required"
 
@@ -289,7 +290,7 @@ class Database:
         """
         # Only admin can create resources
         current_user = self.get_current_user()
-        if not current_user or current_user['user_name'] != 'admin':
+        if not current_user or not current_user.get('is_admin', False):
             logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized resource creation attempt")
             return False, None, "UNAUTHORIZED", "Admin access required"
 
@@ -329,7 +330,7 @@ class Database:
         """
         # Only admin can retrieve all resources
         current_user = self.get_current_user()
-        if not current_user or current_user['user_name'] != 'admin':
+        if not current_user or not current_user.get('is_admin', False):
             logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized resource retrieval attempt")
             return False, None, "UNAUTHORIZED", "Admin access required"
 

@@ -99,8 +99,8 @@ class ResourcePool {
         }
     }
 
-    onResourceSelected(resource_id) {
-        this.dispatchEvent('resource_selected', { resource_id });
+    onResourceSelected(resource_id, resource_name) {
+        this.dispatchEvent('resource_selected', { resource_id, resource_name });
     }
 }
 
@@ -114,8 +114,9 @@ class ResourceCard {
         resource_list_top_gap: 50,
     };
 
-    constructor(id, list_font_size = 20) {
+    constructor(id, name, list_font_size = 20) {
         this.id = id;
+        this.name = name;
         this.list_font_size = list_font_size;
         this.users = [];
         this.view = null;
@@ -140,7 +141,7 @@ class ResourceCard {
 
     onUserSelected(user_id, user_name) {
         // Resource doesn't know about ResourcePool - view handles event delegation
-        console.log(`User selected - Resource: ${this.id}, User ID: ${user_id}, Name: ${user_name}`);
+        console.log(`User selected - Resource: ${this.name} (${this.id}), User: ${user_name} (${user_id})`);
     }
 }
 
@@ -171,7 +172,7 @@ class ResourceView {
             })
             .click((e) => {
                 if (!$(e.target).hasClass('user-item')) {
-                    this.pool.onResourceSelected(id);
+                    this.pool.onResourceSelected(id, this.resource_card.name);
                 }
             });
 
@@ -226,6 +227,7 @@ class ResourceView {
                 this.resource_card.onUserSelected(user.id, user.name);
                 this.pool.dispatchEvent('user_selected', {
                     resource_id: this.resource_card.id,
+                    resource_name: this.resource_card.name,
                     user_id: user.id,
                     user_name: user.name
                 });
@@ -251,64 +253,3 @@ class ResourceView {
 
 
 
-// ===== TEST DATA GENERATION =====
-function testLookOfTheResourceElements() {
-    const pool = ResourcePool.getInstance('center');
-
-    for (let i = 1; i <= 3; i++) {
-        const resource_card = new ResourceCard(i, 20);
-        pool.addResource(resource_card);
-
-        for (let j = 1; j < i; j++) {
-            resource_card.addUser(j.toString(), j);
-        }
-    }
-
-    pool.updateLayout();
-}
-
-function testSimulateUserOperations() {
-    const pool = ResourcePool.getInstance('center');
-
-    // Create user input container
-    const userContainer = $('<div></div>').css({
-        'margin-top': '20px',
-        'text-align': 'center'
-    });
-
-    const userLabel = $('<span>User: </span>');
-    const userInput = $('<input type="number" id="current-user" value="1" min="1">');
-
-    userContainer.append(userLabel).append(userInput);
-    $('#resource-pool-container').after(userContainer);
-
-    // Register event listeners
-    pool.addEventListener('user_selected', (data) => {
-        const currentUserId = parseInt($('#current-user').val());
-        if (data.user_id === currentUserId) {
-            const resource = pool.resources.find(r => r.id === data.resource_id);
-            const isFirstUser = resource.users[0]?.id === currentUserId;
-
-            resource.removeUser(currentUserId);
-
-            if (isFirstUser) {
-                console.log(`RELEASED - Resource: R${data.resource_id}, User: ${currentUserId}`);
-            } else {
-                console.log(`CANCELLED - Resource: R${data.resource_id}, User: ${currentUserId}`);
-            }
-        }
-    });
-
-    pool.addEventListener('resource_selected', (data) => {
-        const currentUserId = parseInt($('#current-user').val());
-        const resource = pool.resources.find(r => r.id === data.resource_id);
-        const userExists = resource.users.some(u => u.id === currentUserId);
-
-        if (!userExists) {
-            resource.addUser(currentUserId.toString(), currentUserId);
-            console.log(`ADDED - Resource: R${data.resource_id}, User: ${currentUserId}`);
-        }
-    });
-
-    testLookOfTheResourceElements();
-}

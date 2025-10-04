@@ -29,8 +29,13 @@ reservia/
 ├── frontend/
 │   ├── templates/       # HTML templates
 │   └── static/          # CSS, JavaScript, images
-├── tests/
-│   └── test_database.py # Database functionality tests
+├── tests/                   # Legacy test directory
+├── backend/tests/           # Backend test suite
+│   ├── test_endpoints.py        # API endpoint tests
+│   ├── test_database.py         # Core database tests
+│   ├── test_database_session.py # Session management tests
+│   └── test_database_reservation.py # Reservation lifecycle tests
+├── frontend/tests/          # Frontend test directory (manual testing)
 ├── docs/                # General documentation
 ├── amazonq-context/     # Amazon Q session context files
 │   ├── backend_context.md   # Backend architecture and setup
@@ -77,6 +82,7 @@ python app.py
 - `id` (INTEGER, Primary Key, Auto-increment)
 - `email` (TEXT, Unique, NOT NULL)
 - `name` (TEXT, NOT NULL)
+- `is_admin` (BOOLEAN, Default: False, NOT NULL)
 
 ### Resources Table
 - `id` (INTEGER, Primary Key, Auto-increment)
@@ -144,6 +150,86 @@ python app.py
 - Clean separation between data models and view components
 - Independent Resource class with static configuration
 - Dependency injection for view components
+
+## Testing
+
+### Backend Tests
+
+To run backend tests, execute from the project root directory:
+
+1. **Activate virtual environment**:
+   ```bash
+   source env/bin/activate
+   ```
+
+2. **Run tests**:
+
+   #### Endpoint Tests
+   ```bash
+   python3 -m backend.tests.test_endpoints
+   ```
+
+   #### Database Tests
+   ```bash
+   python3 -m backend.tests.test_database
+   python3 -m backend.tests.test_database_session
+   python3 -m backend.tests.test_database_reservation
+   ```
+
+**Note**: All backend tests must be run from the project root (`reservia/`) directory to properly resolve module imports.
+
+### Frontend Tests
+
+Frontend testing is done through browser-based interactive testing:
+
+1. **Activate virtual environment and start the development server**:
+   ```bash
+   source env/bin/activate
+   python app.py
+   ```
+
+2. **Modify `frontend/templates/index.html` for testing** (if needed):
+   
+   The HTML already includes test initialization. To change test behavior, modify the JavaScript in the `$(document).ready()` function:
+   
+   ```javascript
+   // Current default test (interactive user simulation)
+   testSimulateUserOperations();
+   
+   // Alternative: Visual layout test with sample data
+   // testLookOfTheResourceElements();
+   ```
+   
+   **Available test functions**:
+   - `testSimulateUserOperations()` - Interactive testing with user input field
+   - `testLookOfTheResourceElements()` - Populates 15 resources with sample data for layout testing
+
+3. **Open browser and navigate to**: http://localhost:5000
+
+3. **Interactive Test Features** (automatically loaded):
+   - **User Simulation**: Use the "User" input field to simulate different users
+   - **Resource Operations**: Click resources to add reservations, click users to cancel/release
+   - **Console Logging**: Check browser console for operation logs (ADDED, CANCELLED, RELEASED)
+   - **Real-time Updates**: Test responsive layout and user list updates
+
+4. **Manual Test Components**:
+   - Resource grid layout and responsiveness
+   - User list scrolling and font size configuration
+   - Window resize behavior and layout recalculation
+   - Apple-styled UI components and interactions
+   - Login/logout functionality
+
+5. **Browser Developer Tools Testing**:
+   - Open browser DevTools (F12)
+   - Monitor JavaScript console for errors and test logs
+   - Verify responsive layout at different screen sizes
+   - Check network requests for API calls
+   - Test session management and authentication
+
+**Frontend Test Files**: 
+- `frontend/static/js/test_frontend.js` - Interactive test functions
+- `frontend/templates/index.html` - Includes test initialization
+- Test functions: `testSimulateUserOperations()`, `testLookOfTheResourceElements()`
 
 ## Usage
 

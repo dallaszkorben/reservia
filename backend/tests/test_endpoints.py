@@ -408,11 +408,72 @@ def test_endpoint_reservation_lifecycle():
 
     print(f"{GREEN}Endpoint reservation lifecycle tests passed!{RESET}\n")
 
+def test_session_status():
+    print("=== Session status endpoint tests started!")
+
+    cleanup_test_databases()
+
+    config_dict = {
+        'app_name': TEST_APP_NAME,
+        'version': '1.0.0',
+        'log': {'log_name': 'test.log', 'level': 'DEBUG', 'backupCount': 1},
+        'database': {'name': TEST_DB_NAME}
+    }
+
+    app = ReserviaApp(config_dict)
+    operation = 0
+
+    with app.test_client() as client:
+        operation += 1
+        print(f"\n{operation}. Session status when not logged in")
+        response = client.get('/session/status')
+        assert response.status_code == 401
+        data = json.loads(response.data)
+        assert data['logged_in'] == False
+
+        operation += 1
+        print(f"\n{operation}. Admin login and status check")
+        login_response = client.post('/session/login',
+                                   data=json.dumps({'name': 'admin', 'password': 'admin'}),
+                                   content_type='application/json')
+        assert login_response.status_code == 200
+
+        status_response = client.get('/session/status')
+        assert status_response.status_code == 200
+        data = json.loads(status_response.data)
+        assert data['logged_in'] == True
+        assert data['user_name'] == 'admin'
+        assert data['user_email'] == 'admin@admin.se'
+        assert data['is_admin'] == True
+        assert 'user_id' in data
+
+        operation += 1
+        print(f"\n{operation}. Create regular user and test status")
+        client.post('/admin/user/add',
+                   data=json.dumps({'name': 'testuser', 'email': 'test@example.com', 'password': 'pass123'}),
+                   content_type='application/json')
+        client.post('/session/logout')
+
+        client.post('/session/login',
+                   data=json.dumps({'name': 'testuser', 'password': 'pass123'}),
+                   content_type='application/json')
+
+        status_response = client.get('/session/status')
+        assert status_response.status_code == 200
+        data = json.loads(status_response.data)
+        assert data['logged_in'] == True
+        assert data['user_name'] == 'testuser'
+        assert data['user_email'] == 'test@example.com'
+        assert data['is_admin'] == False
+
+    print(f"{GREEN}Session status tests passed!{RESET}\n")
+
 if __name__ == "__main__":
     try:
         test_admin_user_add()
         test_admin_resource_add()
         test_endpoint_reservation_lifecycle()
+        test_session_status()
     except Exception as e:
         print(f"{RED}Tests failed: {e}{RESET}")
         raise
