@@ -26,8 +26,9 @@ body {
 /* ===== ADMIN WARNING ===== */
 /* Red gradient background when admin user is logged in */
 #header.admin-warning {
-    background: linear-gradient(135deg, rgba(255,59,48,0.9), rgba(255,149,0,0.8)) !important; /* Red to orange gradient */
-    box-shadow: 0 10px 40px rgba(255,59,48,0.3) !important; /* Red-tinted shadow */
+/*    background: linear-gradient(135deg, rgba(255,59,48,0.9), rgba(255,149,0,0.8)) !important; /* Red to orange gradient */
+    background: linear-gradient(135deg, rgb(193 164 156), rgb(201 198 196)) !important; /* Red to orange gradient */
+/*    box-shadow: 0 10px 40px rgba(255,59,48,0.3) !important; /* Red-tinted shadow */
 }
 
 /* Main title "Reservia" */
@@ -81,7 +82,7 @@ h1 {
 /* ===== MANAGE RESOURCE DROPDOWN ===== */
 /* Green Apple-style button for resource management */
 #manage-resource-btn.ui-button {
-    background: linear-gradient(135deg, #1d7e35, #86ffa4) !important; /* Apple green gradient */
+    background: linear-gradient(135deg, #1d607e, #b5d9ff) !important; /* Apple green gradient */
     box-shadow: 0 4px 15px rgba(52,199,89,0.3) !important; /* Green shadow */
     position: relative;
 }
@@ -98,7 +99,7 @@ h1 {
 /* ===== MANAGE USER DROPDOWN ===== */
 /* Green Apple-style button for user management */
 #manage-user-btn.ui-button {
-    background: linear-gradient(135deg, #1d7e35, #86ffa4) !important; /* Apple green gradient */
+    background: linear-gradient(135deg, #1d607e, #b5d9ff) !important; /* Apple green gradient */
     box-shadow: 0 4px 15px rgba(52,199,89,0.3) !important; /* Green shadow */
     position: relative;
 }

@@ -30,6 +30,12 @@ open http://localhost:5000
 - 📱 **Responsive Design** - Works on desktop and mobile
 - ⚡ **Auto-refresh Interface** - Real-time updates without page reload
 
+## 📸 Main Interface
+
+![Main User Screen](docs/images/main_user_screen.jpg)
+
+*The main Reservia interface showing the resource grid with real-time availability tracking and user management.*
+
 ## 📋 System Requirements
 
 - **Python**: 3.8 or higher
@@ -134,7 +140,10 @@ reservia/
 │   ├── test_database_session.py # Session management tests
 │   └── test_database_reservation.py # Reservation lifecycle tests
 ├── frontend/tests/          # Frontend test directory (manual testing)
-├── docs/                # General documentation
+├── docs/                    # Documentation and assets
+│   ├── images/              # Screenshots, diagrams, visual assets
+│   │   └── main_user_screen.jpg # Main interface screenshot
+│   └── wiki/                # Additional documentation pages
 ├── amazonq-context/     # Amazon Q session context files
 │   ├── backend_context.md   # Backend architecture and setup
 │   └── frontend_context.md  # Frontend architecture and components
@@ -212,7 +221,9 @@ python app.py
 - **GET /session/status** - Check current session status
 - **POST /admin/user/add** - Add new user (requires admin login and JSON payload)
 - **POST /admin/user/modify** - Modify user data (admin can modify any user, user can modify self)
+- **GET /info/users** - Get all users (requires admin login)
 - **POST /admin/resource/add** - Add new resource (requires admin login and JSON payload)
+- **POST /admin/resource/modify** - Modify resource data (requires admin login and JSON payload)
 - **GET /info/resources** - Get all resources
 - **POST /reservation/request** - Request resource reservation (requires user login)
 - **GET /reservation/active** - Get all active reservations (requires user login)
@@ -465,6 +476,24 @@ Expected response:
 {"message": "Resource created successfully", "resource_id": 1}
 ```
 
+#### Modify Resource (Admin Only - Requires Session Cookie)
+```bash
+curl -H "Content-Type: application/json" -X POST -b cookies.txt -d '{"resource_id": 1, "name": "Updated Meeting Room", "comment": "Updated conference room for 12 people"}' http://localhost:5000/admin/resource/modify
+```
+Expected response:
+```json
+{"message": "Resource modified successfully", "resource_id": 1}
+```
+
+#### Get All Users (Admin Only - Requires Session Cookie)
+```bash
+curl -H "Content-Type: application/json" -X GET -b cookies.txt http://localhost:5000/info/users
+```
+Expected response:
+```json
+{"message": "Users retrieved successfully", "users": [{"id": 1, "name": "admin", "email": "admin@example.com", "is_admin": true}], "count": 1}
+```
+
 #### Get All Resources
 ```bash
 curl -H "Content-Type: application/json" -X GET http://localhost:5000/info/resources
@@ -627,6 +656,9 @@ reservia/
 ├── frontend/             # Client-side code
 │   ├── static/          # CSS, JS, images
 │   └── templates/       # HTML templates
+├── docs/                 # Documentation and assets
+│   ├── images/          # Screenshots and diagrams
+│   └── wiki/            # Additional documentation
 ├── app.py               # Application entry point
 ├── requirements.txt     # Python dependencies
 └── README.md           # This documentation

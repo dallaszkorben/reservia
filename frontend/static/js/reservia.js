@@ -334,11 +334,11 @@ class ResourceView {
             });
 
         rectangle.append(title).append(this.user_list);
-        
+
         // Dynamically adjust user list height based on actual title height
         // setTimeout ensures title is rendered before measuring
         setTimeout(() => this.adjustUserListHeight(), 0);
-        
+
         return rectangle;
     }
 
@@ -349,8 +349,8 @@ class ResourceView {
     updateBackgroundColor() {
         const isEmpty = this.resource_card.users.length === 0;
         const background = isEmpty ?
-            'linear-gradient(135deg, #34C759 0%, #32D74B 30%, #5AC8FA 100%)' :  // Green gradient for empty resource card background
-            'linear-gradient(135deg, #FFB366, #F7EDE2)';                        // Orange gradient for occupied resource card background
+            'linear-gradient(135deg, rgb(3 167 118), rgb(246 248 249))' :         // Green gradient for empty resource card background
+            'linear-gradient(135deg, rgb(0 107 165), rgb(255 255 255)';           // Orange gradient for occupied resource card background
         this.element.css('background', background);
     }
 
@@ -364,9 +364,9 @@ class ResourceView {
         // Color-code based on reservation status
         let backgroundColor;
         if (user.status === 'approved') {
-            backgroundColor = 'linear-gradient(135deg, #FF3B30, #FF6B6B)';  // Red gradient for approved user item
+            backgroundColor = 'linear-gradient(135deg, rgb(205 36 27), rgb(247 211 211))';  // Red gradient for approved user item
         } else if (user.status === 'requested') {
-            backgroundColor = 'linear-gradient(135deg, #007AFF, #5AC8FA)';   // Blue gradient for requested user item
+            backgroundColor = 'linear-gradient(135deg, rgb(45 143 141), rgb(216, 222, 255))';   // Blue gradient for requested user item
         } else {
             backgroundColor = 'linear-gradient(135deg, #8E8E93, #AEAEB2)';   // Gray gradient for other status user item
         }
@@ -439,7 +439,7 @@ class ResourceView {
         const titleTop = 10;                            // Title's top position
         const newUserListTop = titleTop + actualTitleHeight + 5;  // 5px gap between title and list
         const newUserListHeight = config.resource_height - newUserListTop - config.resource_list_side_gap;
-        
+
         // Update the user list position and height
         this.user_list.css({
             top: newUserListTop + 'px',
