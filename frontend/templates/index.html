@@ -20,7 +20,7 @@
     <div id="menu-container" style="background-color: white; padding: 15px; text-align: left; border-radius: 10px;">
         <button id="login-btn" style="margin-right:10px;">Login</button>
         <button id="logout-btn" style="margin-right:10px;">Logout</button>
-        <span id="user-info" style="display:none;">Welcome, <span id="user-name"></span></span>
+        <button id="modify-btn" style="margin-right:10px; display:none;">Modify</button>
     </div>
 
     <div id="login-form" style="display:none;">
@@ -30,6 +30,16 @@
         <button id="login-submit">Login</button>
         <button id="login-cancel">Cancel</button>
         <div id="login-error" style="color:red; display:none;"></div>
+    </div>
+
+    <div id="modify-form" style="display:none;">
+        <h2 id="modify-title">Modify User Data</h2>
+        <input type="email" id="modify-email" placeholder="New Email (optional)">
+        <input type="password" id="modify-password" placeholder="New Password (optional)">
+        <button id="modify-submit">Modify</button>
+        <button id="modify-cancel">Cancel</button>
+        <div id="modify-error" style="color:red; display:none;"></div>
+        <div id="modify-success" style="color:green; display:none;"></div>
     </div>
 
     <div id="main-content">
@@ -51,6 +61,15 @@
                 draggable: true,
                 title: 'Login to Reservia'
             });
+            
+            $('#modify-form').dialog({
+                autoOpen: false,
+                modal: true,
+                width: 400,
+                resizable: false,
+                draggable: true,
+                title: 'Modify User Data'
+            });
 
             console.log('Page loaded, checking session...');
             checkSession();
@@ -69,6 +88,18 @@
 
             $('#login-cancel').click(function() {
                 hideLoginForm();
+            });
+
+            $('#modify-btn').click(function() {
+                showModifyForm();
+            });
+
+            $('#modify-submit').click(function() {
+                modifyUser();
+            });
+
+            $('#modify-cancel').click(function() {
+                hideModifyForm();
             });
 
             // Initialize ResourcePool
@@ -146,11 +177,10 @@
         function showLoggedInUI(response) {
             $('#login-btn').hide();
             $('#logout-btn').show();
-            $('#user-info').show();
-            $('#user-name').text(response.user_name);
+            $('#modify-btn').show();
 
-            const tooltipContent = `Logged in<br>user_id: ${response.user_id}<br>user_email: ${response.user_email}<br>user_name: ${response.user_name}<br>is_admin: ${response.is_admin}`;
-            $('#user-name').attr('title', tooltipContent).tooltip({
+            const tooltipContent = `<b>${response.user_name}</b><br>user_id: ${response.user_id}<br>user_email: ${response.user_email}<br>is_admin: ${response.is_admin}`;
+            $('#logout-btn').attr('title', tooltipContent).tooltip({
                 content: tooltipContent,
                 position: { my: "left top+15", at: "left bottom" }
             });
@@ -163,14 +193,15 @@
         function showLoggedOutUI() {
             $('#login-btn').show();
             $('#logout-btn').hide();
-            $('#user-info').hide();
+            $('#modify-btn').hide();
 
             // Only destroy tooltip if it was initialized
-            if ($('#user-name').data('ui-tooltip')) {
-                $('#user-name').tooltip('destroy');
+            if ($('#logout-btn').data('ui-tooltip')) {
+                $('#logout-btn').tooltip('destroy');
             }
 
             hideLoginForm();
+            hideModifyForm();
 
             // Stop auto-refresh and clear resources for logged-out user
             stopAutoRefresh();
@@ -195,6 +226,93 @@
 
         function clearError() {
             $('#login-error').hide();
+        }
+
+        function showModifyForm() {
+            const userName = getCurrentUserNameFromTooltip();
+            const title = userName ? `Modify ${userName} Data` : 'Modify User Data';
+            $('#modify-title').text(title);
+            $('#modify-form').dialog('open');
+            $('#modify-email').val('');
+            $('#modify-password').val('');
+            clearModifyMessages();
+        }
+
+        function hideModifyForm() {
+            $('#modify-form').dialog('close');
+            clearModifyMessages();
+        }
+
+        function modifyUser() {
+            const email = $('#modify-email').val();
+            const password = $('#modify-password').val();
+
+            if (!email && !password) {
+                showModifyError('Please enter at least one field to modify');
+                return;
+            }
+
+            const currentUserId = getCurrentUserIdFromTooltip();
+            if (!currentUserId) {
+                showModifyError('Unable to get current user ID');
+                return;
+            }
+
+            const data = { user_id: currentUserId };
+            if (email) data.email = email;
+            if (password) data.password = password;
+
+            $.ajax({
+                url: '/admin/user/modify',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(data),
+                success: function(response) {
+                    showModifySuccess('User data modified successfully');
+                    // Update session data by checking session again
+                    setTimeout(() => {
+                        checkSession();
+                        hideModifyForm();
+                    }, 1500);
+                },
+                error: function(xhr) {
+                    try {
+                        const errorResponse = JSON.parse(xhr.responseText);
+                        showModifyError(errorResponse.error || 'Modification failed');
+                    } catch (e) {
+                        showModifyError('Modification failed');
+                    }
+                }
+            });
+        }
+
+        function getCurrentUserIdFromTooltip() {
+            const tooltipContent = $('#logout-btn').attr('title');
+            if (!tooltipContent) return null;
+            const match = tooltipContent.match(/user_id: (\d+)/);
+            return match ? parseInt(match[1]) : null;
+        }
+
+        function getCurrentUserNameFromTooltip() {
+            const tooltipContent = $('#logout-btn').attr('title');
+            if (!tooltipContent) return null;
+            const match = tooltipContent.match(/<b>([^<]+)<\/b>/);
+            return match ? match[1] : null;
+        }
+
+        function showModifyError(message) {
+            $('#modify-error').text(message).show();
+            $('#modify-success').hide();
+        }
+
+        function showModifySuccess(message) {
+            $('#modify-success').text(message).show();
+            $('#modify-error').hide();
+        }
+
+        function clearModifyMessages() {
+            $('#modify-error').hide();
+            $('#modify-success').hide();
         }
 
         // Auto-logout on session expiry

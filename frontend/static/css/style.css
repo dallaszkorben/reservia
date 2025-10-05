@@ -46,6 +46,17 @@ h1 {
     box-shadow: 0 6px 20px rgba(0,122,255,0.4) !important;
 }
 
+/* ===== MODIFY BUTTON ===== */
+/* Orange Apple-style button for modify functionality */
+#modify-btn.ui-button {
+    background: linear-gradient(135deg, #FF9500, #FFAD33) !important; /* Apple orange gradient */
+    box-shadow: 0 4px 15px rgba(255,149,0,0.3) !important; /* Orange shadow */
+}
+
+#modify-btn.ui-button:hover {
+    box-shadow: 0 6px 20px rgba(255,149,0,0.4) !important; /* Stronger orange shadow on hover */
+}
+
 /* ===== LOGIN DIALOG ===== */
 /* Modal dialog box for login form */
 #login-form {
@@ -113,7 +124,8 @@ h1 {
 /* ===== USER LIST CONTAINER ===== */
 .user-list {
     overflow-y: auto;
-    background: rgba(255,255,255,0.1);
+/*    background: rgba(255,255,255,0.1); /* Semi-transparent white background for user list container */
+    background: rgba(0,0,0,0.1); /* Semi-transparent black background for user list container */
     border-radius: 8px;
     padding: 5px;
 }

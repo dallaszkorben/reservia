@@ -229,6 +229,63 @@ class Database:
                     return False, None, "DATABASE_ERROR", "Database error occurred"
 
 
+    def modify_user(self, user_id, email=None, password=None):
+        """
+        Modify user data (admin can modify any user, user can modify self).
+
+        Args:
+            user_id (int): ID of the user to modify. Required.
+            email (str, optional): New email address. Defaults to None.
+            password (str, optional): New password in plain text. Defaults to None.
+
+        Returns:
+            tuple: (success, data, error_code, error_message)
+                - success (bool): True if user modified, False otherwise
+                - data (User|None): User object on success, None on failure
+                - error_code (str|None): Error code on failure, None on success
+                - error_message (str|None): Human-readable error message on failure, None on success
+        """
+        current_user = self.get_current_user()
+        if not current_user:
+            logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized user modification - user not logged in")
+            return False, None, "UNAUTHORIZED", "User authentication required"
+
+        # Admin can modify any user, regular user can only modify self
+        if not current_user.get('is_admin', False) and current_user['user_id'] != user_id:
+            logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized user modification - user {current_user['user_id']} cannot modify user {user_id}")
+            return False, None, "UNAUTHORIZED", "Cannot modify other users"
+
+        with self.lock:
+            user = self.session.query(User).filter(User.id == user_id).first()
+            if not user:
+                logging.error(f"{LOG_PREFIX_DATABASE}User with ID {user_id} not found")
+                return False, None, "USER_NOT_FOUND", f"User {user_id} not found"
+
+            try:
+                if email is not None:
+                    user.email = email
+                    # Update session if modifying current user
+                    if current_user['user_id'] == user_id:
+                        session['logged_in_user']['user_email'] = email
+
+                if password is not None:
+                    encoded_password = hashlib.sha256(password.encode()).hexdigest()
+                    password_entry = self.session.query(Password).filter(Password.user_id == user_id).first()
+                    if password_entry:
+                        password_entry.password = encoded_password
+
+                self.session.commit()
+                logging.info(f"{LOG_PREFIX_DATABASE}User modified: {user.name} (ID: {user_id})")
+                return True, user, None, None
+            except Exception as e:
+                self.session.rollback()
+                if "UNIQUE constraint failed: users.email" in str(e):
+                    logging.error(f"{LOG_PREFIX_DATABASE}Email '{email}' already exists")
+                    return False, None, "EMAIL_EXISTS", f"Email '{email}' already exists"
+                else:
+                    logging.error(f"{LOG_PREFIX_DATABASE}Error modifying user: {str(e)}")
+                    return False, None, "DATABASE_ERROR", "Database error occurred"
+
     def update_user(self, email=None, password=None):
 
         # Only logged-in users can update their own profile

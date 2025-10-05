@@ -113,8 +113,9 @@ python app.py
 - **POST /session/logout** - User logout
 - **GET /session/status** - Check current session status
 - **POST /admin/user/add** - Add new user (requires admin login and JSON payload)
+- **POST /admin/user/modify** - Modify user data (admin can modify any user, user can modify self)
 - **POST /admin/resource/add** - Add new resource (requires admin login and JSON payload)
-- **GET /admin/resources** - Get all resources (requires admin login)
+- **GET /info/resources** - Get all resources
 - **POST /reservation/request** - Request resource reservation (requires user login)
 - **GET /reservation/active** - Get all active reservations (requires user login)
 - **POST /reservation/cancel** - Cancel user's reservation (requires user login)
@@ -290,6 +291,15 @@ Expected response:
 {"message": "User created successfully", "user_id": 2}
 ```
 
+#### Modify User Data (Admin can modify any user, User can modify self - Requires Session Cookie)
+```bash
+curl -H "Content-Type: application/json" -X POST -b cookies.txt -d '{"user_id": 2, "email": "newemail@example.com", "password": "newpass123"}' http://localhost:5000/admin/user/modify
+```
+Expected response:
+```json
+{"message": "User modified successfully", "user_id": 2}
+```
+
 #### Add Resource (Admin Only - Requires Session Cookie)
 ```bash
 curl -H "Content-Type: application/json" -X POST -b cookies.txt -d '{"name": "Meeting Room", "comment": "Conference room for 10 people"}' http://localhost:5000/admin/resource/add
@@ -299,9 +309,9 @@ Expected response:
 {"message": "Resource created successfully", "resource_id": 1}
 ```
 
-#### Get All Resources (User Login Required)
+#### Get All Resources
 ```bash
-curl -H "Content-Type: application/json" -X GET -b cookies.txt http://localhost:5000/admin/resources
+curl -H "Content-Type: application/json" -X GET http://localhost:5000/info/resources
 ```
 Expected response:
 ```json

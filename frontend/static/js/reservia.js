@@ -204,20 +204,24 @@ class ResourceView {
     updateBackgroundColor() {
         const isEmpty = this.resource_card.users.length === 0;
         const background = isEmpty ?
-            'linear-gradient(135deg, #34C759 0%, #32D74B 30%, #5AC8FA 100%)' :
-            'linear-gradient(135deg, #FFB366, #FFCC99)';
+            'linear-gradient(135deg, #34C759 0%, #32D74B 30%, #5AC8FA 100%)' :  // Green gradient for empty resource card background
+            'linear-gradient(135deg, #FFB366, #F7EDE2)';                        // Orange gradient for occupied resource card background
         this.element.css('background', background);
     }
 
     addUser(user, fontSize) {
         let backgroundColor;
         if (user.status === 'approved') {
-            backgroundColor = 'linear-gradient(135deg, #FF3B30, #FF6B6B)';  // Red gradient for approved
+            backgroundColor = 'linear-gradient(135deg, #FF3B30, #FF6B6B)';  // Red gradient for approved user item
         } else if (user.status === 'requested') {
-            backgroundColor = 'linear-gradient(135deg, #007AFF, #5AC8FA)';   // Blue gradient for requested
+            backgroundColor = 'linear-gradient(135deg, #007AFF, #5AC8FA)';   // Blue gradient for requested user item
         } else {
-            backgroundColor = 'linear-gradient(135deg, #8E8E93, #AEAEB2)';   // Gray gradient for other status
+            backgroundColor = 'linear-gradient(135deg, #8E8E93, #AEAEB2)';   // Gray gradient for other status user item
         }
+
+        // Check if this is the logged-in user's reservation
+        const currentUserId = this.getCurrentUserId();
+        const isCurrentUser = currentUserId && user.id === currentUserId;
 
         const user_item = $('<div></div>')
             .addClass('user-item')
@@ -225,7 +229,8 @@ class ResourceView {
             .text(user.name)
             .css({
                 'font-size': fontSize + 'px',
-                'background': backgroundColor
+                'background': backgroundColor,
+                'border': isCurrentUser ? '2px solid #000000' : 'none'  // Black border frame for logged-in user
             })
             .click(() => {
                 this.resource_card.onUserSelected(user.id, user.name);
@@ -248,6 +253,13 @@ class ResourceView {
             left: x + 'px',
             top: y + 'px'
         });
+    }
+
+    getCurrentUserId() {
+        const tooltipContent = $('#logout-btn').attr('title');
+        if (!tooltipContent) return null;
+        const match = tooltipContent.match(/user_id: (\d+)/);
+        return match ? parseInt(match[1]) : null;
     }
 
     destroy() {

@@ -2,6 +2,7 @@ import logging
 from flask import Blueprint, jsonify, current_app
 from .base_view import BaseView
 from ..constants import LOG_PREFIX_ENDPOINT
+from ..database import Database
 
 class IsAliveView(BaseView):
     def get(self):
@@ -13,6 +14,47 @@ class GetVersionView(BaseView):
         logging.info(f"{LOG_PREFIX_ENDPOINT}/info/get_version endpoint accessed")
         return jsonify({"version": current_app.config['APP_CONFIG']['version']})
 
+class InfoResourceList(BaseView):
+    """Handles GET requests for retrieving all resources.
+
+    Returns all resources in the system.
+
+    Returns:
+        tuple: JSON response with resources list and HTTP status code
+
+    Example:
+        curl -H "Content-Type: application/json" -X GET \
+             http://localhost:5000/info/resources
+    """
+    def get(self):
+        logging.info(f"{LOG_PREFIX_ENDPOINT}/info/resources endpoint accessed")
+
+        try:
+            db = Database.get_instance()
+            success, resources, error_code, error_msg = db.get_resources()
+
+            if success:
+                resource_list = []
+                for r in resources:
+                    resource_list.append({
+                        "id": r.id,
+                        "name": r.name,
+                        "comment": r.comment
+                    })
+
+                return jsonify({
+                    "message": "Resources retrieved successfully",
+                    "resources": resource_list,
+                    "count": len(resource_list)
+                }), 200
+            else:
+                return jsonify({"error": error_msg}), 400
+
+        except Exception as e:
+            logging.error(f"{LOG_PREFIX_ENDPOINT}Error retrieving resources: {str(e)}")
+            return jsonify({"error": "Internal server error"}), 500
+
+
 class InfoBlueprintManager:
     def __init__(self):
         self.blueprint = Blueprint('info', __name__, url_prefix='/info')
@@ -21,6 +63,7 @@ class InfoBlueprintManager:
     def _register_routes(self):
         self.blueprint.add_url_rule('/is_alive', view_func=IsAliveView.as_view('is_alive'))
         self.blueprint.add_url_rule('/get_version', view_func=GetVersionView.as_view('get_version'))
+        self.blueprint.add_url_rule('/resources', view_func=InfoResourceList.as_view('resource_list'), methods=['GET'])
 
     def get_blueprint(self):
         return self.blueprint

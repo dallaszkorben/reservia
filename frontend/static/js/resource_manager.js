@@ -52,7 +52,7 @@ function refreshResourcesFromServer() {
 
     // Step 1: Get all resources from the server
     $.ajax({
-        url: '/admin/resources',
+        url: '/info/resources',
         method: 'GET',
         success: function(response) {
             // Step 2: Process each resource from the server

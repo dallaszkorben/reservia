@@ -468,10 +468,70 @@ def test_session_status():
 
     print(f"{GREEN}Session status tests passed!{RESET}\n")
 
+def test_admin_user_modify():
+    print("=== Admin user modify endpoint tests started!")
+
+    cleanup_test_databases()
+
+    config_dict = {
+        'app_name': TEST_APP_NAME,
+        'version': '1.0.0',
+        'log': {'log_name': 'test.log', 'level': 'DEBUG', 'backupCount': 1},
+        'database': {'name': TEST_DB_NAME}
+    }
+
+    app = ReserviaApp(config_dict)
+    operation = 0
+
+    with app.test_client() as client:
+        operation += 1
+        print(f"\n{operation}. Admin login and create test user")
+        client.post('/session/login', data=json.dumps({'name': 'admin', 'password': 'admin'}), content_type='application/json')
+        resp = client.post('/admin/user/add', data=json.dumps({'name': 'testuser', 'email': 'test@example.com', 'password': 'pass123'}), content_type='application/json')
+        user_id = json.loads(resp.data)['user_id']
+
+        operation += 1
+        print(f"\n{operation}. Admin modifies user email")
+        response = client.post('/admin/user/modify', data=json.dumps({'user_id': user_id, 'email': 'newemail@example.com'}), content_type='application/json')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['message'] == 'User modified successfully'
+
+        operation += 1
+        print(f"\n{operation}. Admin modifies user password")
+        response = client.post('/admin/user/modify', data=json.dumps({'user_id': user_id, 'password': 'newpass456'}), content_type='application/json')
+        assert response.status_code == 200
+
+        operation += 1
+        print(f"\n{operation}. User modifies own data")
+        client.post('/session/logout')
+        client.post('/session/login', data=json.dumps({'name': 'testuser', 'password': 'newpass456'}), content_type='application/json')
+        response = client.post('/admin/user/modify', data=json.dumps({'user_id': user_id, 'email': 'selfmodified@example.com'}), content_type='application/json')
+        assert response.status_code == 200
+
+        operation += 1
+        print(f"\n{operation}. User cannot modify other user")
+        client.post('/session/logout')
+        client.post('/session/login', data=json.dumps({'name': 'admin', 'password': 'admin'}), content_type='application/json')
+        resp2 = client.post('/admin/user/add', data=json.dumps({'name': 'user2', 'email': 'user2@example.com', 'password': 'pass2'}), content_type='application/json')
+        user2_id = json.loads(resp2.data)['user_id']
+        client.post('/session/logout')
+        client.post('/session/login', data=json.dumps({'name': 'testuser', 'password': 'newpass456'}), content_type='application/json')
+        response = client.post('/admin/user/modify', data=json.dumps({'user_id': user2_id, 'email': 'hacked@example.com'}), content_type='application/json')
+        assert response.status_code == 403
+
+        operation += 1
+        print(f"\n{operation}. Missing user_id validation")
+        response = client.post('/admin/user/modify', data=json.dumps({'email': 'test@example.com'}), content_type='application/json')
+        assert response.status_code == 400
+
+    print(f"{GREEN}Admin user modify tests passed!{RESET}\n")
+
 if __name__ == "__main__":
     try:
         test_admin_user_add()
         test_admin_resource_add()
+        test_admin_user_modify()
         test_endpoint_reservation_lifecycle()
         test_session_status()
     except Exception as e:
