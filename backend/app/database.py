@@ -368,6 +368,51 @@ class Database:
                     logging.error(f"{LOG_PREFIX_DATABASE}Error creating resource: {str(e)}")
                     return False, None, "DATABASE_ERROR", "Database error occurred"
 
+    def modify_resource(self, resource_id, name=None, comment=None):
+        """
+        Modify resource data (admin only).
+
+        Args:
+            resource_id (int): ID of the resource to modify. Required.
+            name (str, optional): New resource name. Defaults to None.
+            comment (str, optional): New resource comment. Defaults to None.
+
+        Returns:
+            tuple: (success, data, error_code, error_message)
+                - success (bool): True if resource modified, False otherwise
+                - data (Resource|None): Resource object on success, None on failure
+                - error_code (str|None): Error code on failure, None on success
+                - error_message (str|None): Human-readable error message on failure, None on success
+        """
+        current_user = self.get_current_user()
+        if not current_user or not current_user.get('is_admin', False):
+            logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized resource modification - admin access required")
+            return False, None, "UNAUTHORIZED", "Admin access required"
+
+        with self.lock:
+            resource = self.session.query(Resource).filter(Resource.id == resource_id).first()
+            if not resource:
+                logging.error(f"{LOG_PREFIX_DATABASE}Resource with ID {resource_id} not found")
+                return False, None, "RESOURCE_NOT_FOUND", f"Resource {resource_id} not found"
+
+            try:
+                if name is not None:
+                    resource.name = name
+                if comment is not None:
+                    resource.comment = comment
+
+                self.session.commit()
+                logging.info(f"{LOG_PREFIX_DATABASE}Resource modified: {resource.name} (ID: {resource_id})")
+                return True, resource, None, None
+            except Exception as e:
+                self.session.rollback()
+                if "UNIQUE constraint failed: resources.name" in str(e):
+                    logging.error(f"{LOG_PREFIX_DATABASE}Resource name '{name}' already exists")
+                    return False, None, "RESOURCE_EXISTS", f"Resource name '{name}' already exists"
+                else:
+                    logging.error(f"{LOG_PREFIX_DATABASE}Error modifying resource: {str(e)}")
+                    return False, None, "DATABASE_ERROR", "Database error occurred"
+
     def get_resources(self):
         """
         Retrieve all resources in the system (requires login).

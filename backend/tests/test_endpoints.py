@@ -532,11 +532,101 @@ def test_admin_user_modify():
 
     print(f"{GREEN}Admin user modify tests passed!{RESET}\n")
 
+def test_admin_resource_modify():
+    print("=== Admin resource modify endpoint tests started!")
+
+    cleanup_test_databases()
+
+    config_dict = {
+        'app_name': TEST_APP_NAME,
+        'version': '1.0.0',
+        'log': {'log_name': 'test.log', 'level': 'DEBUG', 'backupCount': 1},
+        'database': {'name': TEST_DB_NAME}
+    }
+
+    app = ReserviaApp(config_dict)
+    operation = 0
+
+    with app.test_client() as client:
+        operation += 1
+        print(f"\n{operation}. Admin login and create test resource")
+        client.post('/session/login', data=json.dumps({'name': 'admin', 'password': hash_password('admin')}), content_type='application/json')
+        resp = client.post('/admin/resource/add', data=json.dumps({'name': 'Test Room', 'comment': 'Original comment'}), content_type='application/json')
+        resource_id = json.loads(resp.data)['resource_id']
+
+        operation += 1
+        print(f"\n{operation}. Admin modifies resource name")
+        response = client.post('/admin/resource/modify', data=json.dumps({'resource_id': resource_id, 'name': 'Modified Room'}), content_type='application/json')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['message'] == 'Resource modified successfully'
+
+        operation += 1
+        print(f"\n{operation}. Admin modifies resource comment")
+        response = client.post('/admin/resource/modify', data=json.dumps({'resource_id': resource_id, 'comment': 'Updated comment'}), content_type='application/json')
+        assert response.status_code == 200
+
+        operation += 1
+        print(f"\n{operation}. Admin modifies both name and comment")
+        response = client.post('/admin/resource/modify', data=json.dumps({'resource_id': resource_id, 'name': 'Final Room', 'comment': 'Final comment'}), content_type='application/json')
+        assert response.status_code == 200
+
+        operation += 1
+        print(f"\n{operation}. Duplicate resource name test")
+        client.post('/admin/resource/add', data=json.dumps({'name': 'Another Room', 'comment': 'Another comment'}), content_type='application/json')
+        response = client.post('/admin/resource/modify', data=json.dumps({'resource_id': resource_id, 'name': 'Another Room'}), content_type='application/json')
+        assert response.status_code == 409
+        data = json.loads(response.data)
+        assert 'error' in data
+        assert 'Another Room' in data['error']
+        assert 'already exists' in data['error']
+
+        operation += 1
+        print(f"\n{operation}. Non-existent resource test")
+        response = client.post('/admin/resource/modify', data=json.dumps({'resource_id': 999, 'name': 'Non-existent'}), content_type='application/json')
+        assert response.status_code == 404
+        data = json.loads(response.data)
+        assert 'error' in data
+        assert '999' in data['error']
+        assert 'not found' in data['error']
+
+        operation += 1
+        print(f"\n{operation}. Regular user cannot modify resource")
+        client.post('/admin/user/add', data=json.dumps({'name': 'testuser', 'email': 'test@example.com', 'password': hash_password('pass123')}), content_type='application/json')
+        client.post('/session/logout')
+        client.post('/session/login', data=json.dumps({'name': 'testuser', 'password': hash_password('pass123')}), content_type='application/json')
+        response = client.post('/admin/resource/modify', data=json.dumps({'resource_id': resource_id, 'name': 'Hacked Room'}), content_type='application/json')
+        assert response.status_code == 403
+        data = json.loads(response.data)
+        assert 'error' in data
+        assert 'Admin access required' in data['error']
+
+        operation += 1
+        print(f"\n{operation}. Missing resource_id validation")
+        response = client.post('/admin/resource/modify', data=json.dumps({'name': 'No ID Room'}), content_type='application/json')
+        assert response.status_code == 400
+        data = json.loads(response.data)
+        assert 'error' in data
+        assert 'resource_id' in data['error']
+
+        operation += 1
+        print(f"\n{operation}. Missing both name and comment validation")
+        client.post('/session/logout')
+        client.post('/session/login', data=json.dumps({'name': 'admin', 'password': hash_password('admin')}), content_type='application/json')
+        response = client.post('/admin/resource/modify', data=json.dumps({'resource_id': resource_id}), content_type='application/json')
+        assert response.status_code == 400
+        data = json.loads(response.data)
+        assert 'error' in data
+        assert 'At least one field must be provided' in data['error']
+
+    print(f"{GREEN}Admin resource modify tests passed!{RESET}\n")
+
 if __name__ == "__main__":
     try:
         test_admin_user_add()
         test_admin_resource_add()
         test_admin_user_modify()
+        test_admin_resource_modify()
         test_endpoint_reservation_lifecycle()
         test_session_status()
     except Exception as e:

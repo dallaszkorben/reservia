@@ -23,6 +23,14 @@
         <button id="login-btn" style="margin-right:10px;">Login</button>
         <button id="logout-btn" style="margin-right:10px;">Logout</button>
         <button id="modify-btn" style="margin-right:10px; display:none;">Modify</button>
+        <div class="dropdown-container" style="display:none;" id="manage-resource-container">
+            <button id="manage-resource-btn" style="margin-right:10px;">Manage Resource</button>
+            <div class="dropdown-menu" id="resource-dropdown">
+                <div class="dropdown-item" data-action="add">Add</div>
+                <div class="dropdown-item" data-action="remove">Remove</div>
+                <div class="dropdown-item" data-action="modify">Modify</div>
+            </div>
+        </div>
     </div>
 
     <div id="login-form" style="display:none;">
@@ -40,8 +48,38 @@
         <input type="password" id="modify-password" placeholder="New Password (optional)">
         <button id="modify-submit">Modify</button>
         <button id="modify-cancel">Cancel</button>
-        <div id="modify-error" style="color:red; display:none;"></div>
-        <div id="modify-success" style="color:green; display:none;"></div>
+        <div id="modify-error" style="color:red; display:none; margin-top:15px;"></div>
+        <div id="modify-success" style="color:green; display:none; margin-top:15px;"></div>
+    </div>
+
+    <div id="add-resource-form" style="display:none;">
+        <h2>Add New Resource</h2>
+        <input type="text" id="resource-name" placeholder="Resource Name (required)">
+        <input type="text" id="resource-comment" placeholder="Comment (optional)">
+        <button id="add-resource-submit">Add</button>
+        <button id="add-resource-cancel">Cancel</button>
+        <div id="add-resource-error" style="color:red; display:none; margin-top:15px;"></div>
+        <div id="add-resource-success" style="color:green; display:none; margin-top:15px;"></div>
+    </div>
+
+    <div id="resource-select-form" style="display:none;">
+        <h2>Select Resource to Modify</h2>
+        <select id="resource-select" style="width:100%; margin:10px 0; padding:8px;">
+            <option value="">-- Select a resource --</option>
+        </select>
+        <button id="resource-select-submit">Modify Selected</button>
+        <button id="resource-select-cancel">Cancel</button>
+        <div id="resource-select-error" style="color:red; display:none; margin-top:15px;"></div>
+    </div>
+
+    <div id="modify-resource-form" style="display:none;">
+        <h2 id="modify-resource-title">Modify Resource</h2>
+        <input type="text" id="modify-resource-name" placeholder="Resource Name">
+        <input type="text" id="modify-resource-comment" placeholder="Comment (optional)">
+        <button id="modify-resource-submit">Modify</button>
+        <button id="modify-resource-cancel">Cancel</button>
+        <div id="modify-resource-error" style="color:red; display:none; margin-top:15px;"></div>
+        <div id="modify-resource-success" style="color:green; display:none; margin-top:15px;"></div>
     </div>
 
     <div id="main-content">
@@ -71,6 +109,33 @@
                 resizable: false,
                 draggable: true,
                 title: 'Modify User Data'
+            });
+            
+            $('#add-resource-form').dialog({
+                autoOpen: false,
+                modal: true,
+                width: 400,
+                resizable: false,
+                draggable: true,
+                title: 'Add New Resource'
+            });
+            
+            $('#resource-select-form').dialog({
+                autoOpen: false,
+                modal: true,
+                width: 400,
+                resizable: false,
+                draggable: true,
+                title: 'Select Resource to Modify'
+            });
+            
+            $('#modify-resource-form').dialog({
+                autoOpen: false,
+                modal: true,
+                width: 400,
+                resizable: false,
+                draggable: true,
+                title: 'Modify Resource'
             });
 
             console.log('Page loaded, checking session...');
@@ -102,6 +167,74 @@
 
             $('#modify-cancel').click(function() {
                 hideModifyForm();
+            });
+
+            $('#add-resource-submit').click(function() {
+                addResource();
+            });
+
+            $('#add-resource-cancel').click(function() {
+                hideAddResourceForm();
+            });
+
+            $('#resource-select-submit').click(function() {
+                selectResourceToModify();
+            });
+
+            $('#resource-select-cancel').click(function() {
+                hideResourceSelectForm();
+            });
+
+            $('#modify-resource-submit').click(function() {
+                modifyResource();
+            });
+
+            $('#modify-resource-cancel').click(function() {
+                hideModifyResourceForm();
+            });
+
+            // Clear error messages when typing in forms
+            $('#resource-name, #resource-comment').on('input', function() {
+                clearAddResourceMessages();
+            });
+            
+            $('#modify-email, #modify-password').on('input', function() {
+                clearModifyMessages();
+            });
+            
+            $('#modify-resource-name, #modify-resource-comment').on('input', function() {
+                clearModifyResourceMessages();
+            });
+
+            // Manage Resource dropdown functionality - click to toggle
+            $('#manage-resource-btn').click(function(e) {
+                e.stopPropagation();
+                $('#resource-dropdown').toggle();
+            });
+
+            // Hide dropdown when clicking outside
+            $(document).click(function() {
+                $('#resource-dropdown').hide();
+            });
+
+            // Prevent dropdown from closing when clicking inside it
+            $('#resource-dropdown').click(function(e) {
+                e.stopPropagation();
+            });
+
+            // Dropdown item clicks
+            $('.dropdown-item').click(function() {
+                const action = $(this).data('action');
+                $('#resource-dropdown').hide();
+                
+                if (action === 'add') {
+                    showAddResourceForm();
+                } else if (action === 'modify') {
+                    showResourceSelectForm();
+                } else {
+                    console.log('Resource management action:', action);
+                    // TODO: Add functionality for remove action
+                }
             });
 
             // Initialize ResourcePool
@@ -191,6 +324,13 @@
             $('#logout-btn').show();
             $('#modify-btn').show();
 
+            // Show Manage Resource button only for admin users
+            if (response.is_admin) {
+                $('#manage-resource-container').show();
+            } else {
+                $('#manage-resource-container').hide();
+            }
+
             // Admin warning is handled by SessionManager.setSessionData()
 
             const tooltipContent = `<b>${response.user_name}</b><br>user_id: ${response.user_id}<br>user_email: ${response.user_email}<br>is_admin: ${response.is_admin}`;
@@ -211,6 +351,7 @@
             $('#login-btn').show();
             $('#logout-btn').hide();
             $('#modify-btn').hide();
+            $('#manage-resource-container').hide();
 
             // Admin warning reset is handled by SessionManager.clearSessionData()
 
@@ -221,6 +362,9 @@
 
             hideLoginForm();
             hideModifyForm();
+            hideAddResourceForm();
+            hideResourceSelectForm();
+            hideModifyResourceForm();
 
             // Stop auto-refresh and clear resources for logged-out user
             stopAutoRefresh();
@@ -333,6 +477,197 @@
         function clearModifyMessages() {
             $('#modify-error').hide();
             $('#modify-success').hide();
+        }
+
+        function showAddResourceForm() {
+            $('#add-resource-form').dialog('open');
+            $('#resource-name').val('');
+            $('#resource-comment').val('');
+            clearAddResourceMessages();
+        }
+
+        function hideAddResourceForm() {
+            $('#add-resource-form').dialog('close');
+            clearAddResourceMessages();
+        }
+
+        function addResource() {
+            const name = $('#resource-name').val().trim();
+            const comment = $('#resource-comment').val().trim();
+
+            if (!name) {
+                showAddResourceError('Resource name is required');
+                return;
+            }
+
+            const data = { name: name };
+            if (comment) {
+                data.comment = comment;
+            }
+
+            $.ajax({
+                url: '/admin/resource/add',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(data),
+                success: function(response) {
+                    showAddResourceSuccess('Resource added successfully');
+                    // Refresh resources after successful addition
+                    setTimeout(() => {
+                        loadResourcesFromServer();
+                        hideAddResourceForm();
+                    }, 1500);
+                },
+                error: function(xhr) {
+                    try {
+                        const errorResponse = JSON.parse(xhr.responseText);
+                        showAddResourceError(errorResponse.error || 'Failed to add resource');
+                    } catch (e) {
+                        showAddResourceError('Failed to add resource');
+                    }
+                }
+            });
+        }
+
+        function showAddResourceError(message) {
+            $('#add-resource-error').text(message).show();
+            $('#add-resource-success').hide();
+        }
+
+        function showAddResourceSuccess(message) {
+            $('#add-resource-success').text(message).show();
+            $('#add-resource-error').hide();
+        }
+
+        function clearAddResourceMessages() {
+            $('#add-resource-error').hide();
+            $('#add-resource-success').hide();
+        }
+
+        function showResourceSelectForm() {
+            // Load resources into dropdown
+            loadResourcesIntoDropdown();
+            $('#resource-select-form').dialog('open');
+            $('#resource-select').val('');
+            clearResourceSelectMessages();
+        }
+
+        function hideResourceSelectForm() {
+            $('#resource-select-form').dialog('close');
+            clearResourceSelectMessages();
+        }
+
+        function loadResourcesIntoDropdown() {
+            $.ajax({
+                url: '/info/resources',
+                method: 'GET',
+                success: function(response) {
+                    const select = $('#resource-select');
+                    select.empty();
+                    select.append('<option value="">-- Select a resource --</option>');
+                    
+                    if (response.resources && response.resources.length > 0) {
+                        response.resources.forEach(resource => {
+                            select.append(`<option value="${resource.id}" data-name="${resource.name}" data-comment="${resource.comment || ''}">${resource.name}</option>`);
+                        });
+                    }
+                },
+                error: function(xhr) {
+                    showResourceSelectError('Failed to load resources');
+                }
+            });
+        }
+
+        function selectResourceToModify() {
+            const selectedOption = $('#resource-select option:selected');
+            const resourceId = selectedOption.val();
+            
+            if (!resourceId) {
+                showResourceSelectError('Please select a resource');
+                return;
+            }
+            
+            const resourceName = selectedOption.data('name');
+            const resourceComment = selectedOption.data('comment');
+            
+            hideResourceSelectForm();
+            showModifyResourceForm(resourceId, resourceName, resourceComment);
+        }
+
+        function showResourceSelectError(message) {
+            $('#resource-select-error').text(message).show();
+        }
+
+        function clearResourceSelectMessages() {
+            $('#resource-select-error').hide();
+        }
+
+        function showModifyResourceForm(resourceId, name, comment) {
+            $('#modify-resource-title').text(`Modify Resource: ${name}`);
+            $('#modify-resource-name').val(name);
+            $('#modify-resource-comment').val(comment || '');
+            $('#modify-resource-form').data('resource-id', resourceId);
+            $('#modify-resource-form').dialog('open');
+            clearModifyResourceMessages();
+        }
+
+        function hideModifyResourceForm() {
+            $('#modify-resource-form').dialog('close');
+            clearModifyResourceMessages();
+        }
+
+        function modifyResource() {
+            const resourceId = $('#modify-resource-form').data('resource-id');
+            const name = $('#modify-resource-name').val().trim();
+            const comment = $('#modify-resource-comment').val().trim();
+
+            if (!name) {
+                showModifyResourceError('Resource name is required');
+                return;
+            }
+
+            const data = { 
+                resource_id: resourceId,
+                name: name,
+                comment: comment
+            };
+
+            $.ajax({
+                url: '/admin/resource/modify',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(data),
+                success: function(response) {
+                    showModifyResourceSuccess('Resource modified successfully');
+                    // Refresh page after successful modification
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                },
+                error: function(xhr) {
+                    try {
+                        const errorResponse = JSON.parse(xhr.responseText);
+                        showModifyResourceError(errorResponse.error || 'Failed to modify resource');
+                    } catch (e) {
+                        showModifyResourceError('Failed to modify resource');
+                    }
+                }
+            });
+        }
+
+        function showModifyResourceError(message) {
+            $('#modify-resource-error').text(message).show();
+            $('#modify-resource-success').hide();
+        }
+
+        function showModifyResourceSuccess(message) {
+            $('#modify-resource-success').text(message).show();
+            $('#modify-resource-error').hide();
+        }
+
+        function clearModifyResourceMessages() {
+            $('#modify-resource-error').hide();
+            $('#modify-resource-success').hide();
         }
 
         // Auto-logout on session expiry

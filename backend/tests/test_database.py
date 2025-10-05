@@ -244,6 +244,82 @@ def test_db_resource_get_all():
 
     print(f"{GREEN}Resource get all database tests passed!{RESET}")
 
+def test_db_resource_modify():
+    print("=== Resource modify database tests started!")
+
+    cleanup_test_databases()
+
+    config_dict = {
+        'app_name': TEST_APP_NAME,
+        'version': '1.0.0',
+        'log': {'log_name': 'test.log', 'level': 'DEBUG', 'backupCount': 1},
+        'database': {'name': TEST_DB_NAME},
+        'session': {'secret_key': 'test-secret-key'}
+    }
+
+    app = ReserviaApp(config_dict)
+    operation = 0
+
+    with app.test_request_context():
+        db = Database.get_instance(config_dict)
+
+        operation += 1
+        print(f"\n{operation}. Unauthorized modification test")
+        success, resource, error_code, error_msg = db.modify_resource(1, "Hacked Room")
+        assert not success and resource is None and error_code == "UNAUTHORIZED"
+
+        operation += 1
+        print(f"\n{operation}. Admin login and create test resource")
+        _, admin_user, _, _ = db.login("admin", hash_password("admin"))
+        assert admin_user is not None
+        _, test_resource, _, _ = db.create_resource("Original Room", "Original comment")
+        resource_id = test_resource.id
+
+        operation += 1
+        print(f"\n{operation}. Modify resource name only")
+        success, modified_resource, error_code, error_msg = db.modify_resource(resource_id, name="Modified Room")
+        assert success and modified_resource is not None and error_code is None
+        assert modified_resource.name == "Modified Room"
+        assert modified_resource.comment == "Original comment"
+
+        operation += 1
+        print(f"\n{operation}. Modify resource comment only")
+        success, modified_resource, error_code, error_msg = db.modify_resource(resource_id, comment="Modified comment")
+        assert success and modified_resource is not None and error_code is None
+        assert modified_resource.name == "Modified Room"
+        assert modified_resource.comment == "Modified comment"
+
+        operation += 1
+        print(f"\n{operation}. Modify both name and comment")
+        success, modified_resource, error_code, error_msg = db.modify_resource(resource_id, name="Final Room", comment="Final comment")
+        assert success and modified_resource is not None and error_code is None
+        assert modified_resource.name == "Final Room"
+        assert modified_resource.comment == "Final comment"
+
+        operation += 1
+        print(f"\n{operation}. Non-existent resource test")
+        success, resource, error_code, error_msg = db.modify_resource(999, name="Non-existent")
+        assert not success and resource is None and error_code == "RESOURCE_NOT_FOUND"
+        assert "999" in error_msg and "not found" in error_msg
+
+        operation += 1
+        print(f"\n{operation}. Duplicate name test")
+        _, another_resource, _, _ = db.create_resource("Another Room", "Another comment")
+        success, resource, error_code, error_msg = db.modify_resource(resource_id, name="Another Room")
+        assert not success and resource is None and error_code == "RESOURCE_EXISTS"
+        assert "Another Room" in error_msg and "already exists" in error_msg
+
+        operation += 1
+        print(f"\n{operation}. Create regular user and test unauthorized access")
+        _, regular_user, _, _ = db.create_user("testuser", "test@example.com", hash_password("pass123"))
+        db.logout()
+        _, _, _, _ = db.login("testuser", hash_password("pass123"))
+        success, resource, error_code, error_msg = db.modify_resource(resource_id, name="Hacked Room")
+        assert not success and resource is None and error_code == "UNAUTHORIZED"
+        assert "Admin access required" in error_msg
+
+    print(f"{GREEN}Resource modify database tests passed!{RESET}")
+
 # === Login ===
 
 def test_db_login():
@@ -296,6 +372,7 @@ if __name__ == "__main__":
         test_db_user_add()
         test_db_resource_add()
         test_db_resource_get_all()
+        test_db_resource_modify()
         test_db_user_update()
         test_db_login()
     except Exception as e:

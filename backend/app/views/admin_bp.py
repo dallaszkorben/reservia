@@ -14,6 +14,7 @@ class AdminBlueprintManager:
         self.blueprint.add_url_rule('/user/add', view_func=AdminUserAdd.as_view('user_add'), methods=['POST'])
         self.blueprint.add_url_rule('/user/modify', view_func=AdminUserModify.as_view('user_modify'), methods=['POST'])
         self.blueprint.add_url_rule('/resource/add', view_func=AdminResourceAdd.as_view('resource_add'), methods=['POST'])
+        self.blueprint.add_url_rule('/resource/modify', view_func=AdminResourceModify.as_view('resource_modify'), methods=['POST'])
 
     def get_blueprint(self):
         return self.blueprint
@@ -129,6 +130,47 @@ class AdminResourceAdd(BaseView):
         except Exception as e:
             logging.error(f"{LOG_PREFIX_ENDPOINT}Error creating resource: {str(e)}")
             return jsonify({"error": "Failed to create resource"}), 500
+
+
+class AdminResourceModify(BaseView):
+    """
+    Resource modification endpoint (admin only)
+
+    Usage:
+    curl -H "Content-Type: application/json" -X POST -b cookies.txt \
+         -d '{"resource_id": 1, "name": "New Room Name", "comment": "Updated description"}' \
+         http://localhost:5000/admin/resource/modify
+    """
+    def post(self):
+        logging.info(f"{LOG_PREFIX_ENDPOINT}/admin/resource/modify endpoint accessed")
+
+        data = request.get_json()
+        if not data or 'resource_id' not in data:
+            return jsonify({"error": "Missing required field: resource_id"}), 400
+
+        resource_id = data['resource_id']
+        name = data.get('name')
+        comment = data.get('comment')
+
+        if not name and not comment:
+            return jsonify({"error": "At least one field must be provided: name, comment"}), 400
+
+        try:
+            db = Database.get_instance()
+            success, resource, error_code, error_msg = db.modify_resource(resource_id, name, comment)
+            if success:
+                return jsonify({"message": "Resource modified successfully", "resource_id": resource.id}), 200
+            else:
+                if error_code == "UNAUTHORIZED":
+                    return jsonify({"error": error_msg}), 403
+                elif error_code == "RESOURCE_NOT_FOUND":
+                    return jsonify({"error": error_msg}), 404
+                elif error_code == "RESOURCE_EXISTS":
+                    return jsonify({"error": error_msg}), 409
+                return jsonify({"error": error_msg}), 400
+        except Exception as e:
+            logging.error(f"{LOG_PREFIX_ENDPOINT}Error modifying resource: {str(e)}")
+            return jsonify({"error": "Failed to modify resource"}), 500
 
 
 

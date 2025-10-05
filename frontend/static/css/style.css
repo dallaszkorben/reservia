@@ -65,6 +65,64 @@ h1 {
     box-shadow: 0 6px 20px rgba(255,149,0,0.4) !important; /* Stronger orange shadow on hover */
 }
 
+/* ===== MANAGE RESOURCE DROPDOWN ===== */
+/* Green Apple-style button for resource management */
+#manage-resource-btn.ui-button {
+    background: linear-gradient(135deg, #34C759, #30D158) !important; /* Apple green gradient */
+    box-shadow: 0 4px 15px rgba(52,199,89,0.3) !important; /* Green shadow */
+    position: relative;
+}
+
+#manage-resource-btn.ui-button:hover {
+    box-shadow: 0 6px 20px rgba(52,199,89,0.4) !important; /* Stronger green shadow on hover */
+}
+
+/* Dropdown menu container */
+.dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: rgba(255,255,255,0.98);
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    min-width: 120px;
+    z-index: 1000;
+    display: none;
+    margin-top: 2px;
+}
+
+/* Dropdown menu items */
+.dropdown-item {
+    padding: 10px 15px;
+    color: #333;
+    text-decoration: none;
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+    cursor: pointer;
+}
+
+.dropdown-item:first-child {
+    border-radius: 12px 12px 0 0;
+}
+
+.dropdown-item:last-child {
+    border-radius: 0 0 12px 12px;
+}
+
+.dropdown-item:hover {
+    background: rgba(52,199,89,0.1);
+    color: #34C759;
+}
+
+/* Container for dropdown positioning */
+.dropdown-container {
+    position: relative;
+    display: inline-block;
+}
+
 /* ===== LOGIN DIALOG ===== */
 /* Modal dialog box for login form */
 #login-form {
