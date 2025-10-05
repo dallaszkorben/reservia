@@ -4,8 +4,10 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; /* Apple system fonts */
     background: linear-gradient(135deg, #007AFF 0%, #5AC8FA 50%, #34C759 100%); /* Apple blue to green gradient */
     margin: 0;
-    padding: 20px;
-    min-height: 100vh;
+    padding: 20px 20px 20px 20px;
+    height: 100vh;
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 /* ===== HEADER SECTION ===== */
@@ -13,22 +15,28 @@ body {
 #header {
     background: rgba(255,255,255,0.95); /* Bright white with slight transparency */
     backdrop-filter: blur(20px); /* Strong glass effect */
-    border-radius: 16px; /* More rounded corners */
+    border-radius: 0 0 16px 16px; /* Rounded bottom corners only */
     padding: 10px;
-    margin-bottom: 25px;
     box-shadow: 0 10px 40px rgba(0,122,255,0.2); /* Blue-tinted shadow */
     border: 1px solid rgba(255,255,255,0.3); /* Subtle white border */
     text-align: left; /* Button alignment */
-    position: relative;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
     z-index: 20000;
+    transform: translateY(-100%);
+    transition: transform 0.3s ease;
+}
+
+#header.visible {
+    transform: translateY(0);
 }
 
 /* ===== ADMIN WARNING ===== */
 /* Red gradient background when admin user is logged in */
 #header.admin-warning {
-/*    background: linear-gradient(135deg, rgba(255,59,48,0.9), rgba(255,149,0,0.8)) !important; /* Red to orange gradient */
-    background: linear-gradient(135deg, rgb(193 164 156), rgb(201 198 196)) !important; /* Red to orange gradient */
-/*    box-shadow: 0 10px 40px rgba(255,59,48,0.3) !important; /* Red-tinted shadow */
+    background: linear-gradient(135deg, rgb(193 164 156), rgb(201 198 196)) !important;
 }
 
 /* Main title "Reservia" */
@@ -339,3 +347,11 @@ h1 {
     font-weight: 600;
     color: white;
 }
+
+/* ===== UTILITY CLASSES ===== */
+.hidden { display: none !important; }
+.margin-right-10 { margin-right: 10px; }
+.error-message { color: red; display: none; margin-top: 15px; }
+.success-message { color: green; display: none; margin-top: 15px; }
+.form-input { width: 100%; margin: 10px 0; padding: 8px; }
+.form-select { width: 100%; margin: 10px 0; padding: 8px; }

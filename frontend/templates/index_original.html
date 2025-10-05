@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reservia - Resource Reservation System</title>
+    <script src="{{ url_for('static', filename='js/jquery/jquery-3.6.0.min.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='js/jquery-ui/jquery-ui.min.css') }}">
+    <script src="{{ url_for('static', filename='js/jquery-ui/jquery-ui.min.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/crypto_utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/session_manager.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/reservia.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/resource_manager.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/test_frontend.js') }}"></script>
+</head>
+<body>
+    <div id="title-container" style="background-color: white; padding: 20px; text-align: center; margin-bottom: 10px; border-radius: 10px;">
+        <h1>Reservia</h1>
+    </div>
+
+    <div id="header">
+        <button id="login-btn" style="margin-right:10px;">Login</button>
+        <button id="logout-btn" style="margin-right:10px;">Logout</button>
+        <button id="modify-btn" style="margin-right:10px; display:none;">Modify</button>
+        <div class="dropdown-container" style="display:none;" id="manage-resource-container">
+            <button id="manage-resource-btn" style="margin-right:10px;">Manage Resources</button>
+            <div class="dropdown-menu" id="resource-dropdown">
+                <div class="dropdown-item" data-action="add">Add</div>
+                <div class="dropdown-item" data-action="remove">Remove</div>
+                <div class="dropdown-item dropdown-submenu" data-action="modify">
+                    Modify >
+                    <div class="dropdown-submenu-content" id="modify-submenu" style="display:none;">
+                        <!-- Resources will be loaded here dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="dropdown-container" style="display:none;" id="manage-user-container">
+            <button id="manage-user-btn" style="margin-right:10px;">Manage Users</button>
+            <div class="dropdown-menu" id="user-dropdown">
+                <div class="dropdown-item" data-action="add">Add</div>
+                <div class="dropdown-item" data-action="remove">Remove</div>
+                <div class="dropdown-item dropdown-submenu" data-action="modify">
+                    Modify >
+                    <div class="dropdown-submenu-content" id="modify-user-submenu" style="display:none;">
+                        <!-- Users will be loaded here dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="login-form" style="display:none;">
+        <h2>Login</h2>
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <button id="login-submit">Login</button>
+        <button id="login-cancel">Cancel</button>
+        <div id="login-error" style="color:red; display:none;"></div>
+    </div>
+
+    <div id="modify-form" style="display:none;">
+        <h2 id="modify-title">Modify User Data</h2>
+        <input type="email" id="modify-email" placeholder="New Email (optional)">
+        <input type="password" id="modify-password" placeholder="New Password (optional)">
+        <button id="modify-submit">Modify</button>
+        <button id="modify-cancel">Cancel</button>
+        <div id="modify-error" style="color:red; display:none; margin-top:15px;"></div>
+        <div id="modify-success" style="color:green; display:none; margin-top:15px;"></div>
+    </div>
+
+    <div id="add-resource-form" style="display:none;">
+        <h2>Add New Resource</h2>
+        <input type="text" id="resource-name" placeholder="Resource Name (required)">
+        <input type="text" id="resource-comment" placeholder="Comment (optional)">
+        <button id="add-resource-submit">Add</button>
+        <button id="add-resource-cancel">Cancel</button>
+        <div id="add-resource-error" style="color:red; display:none; margin-top:15px;"></div>
+        <div id="add-resource-success" style="color:green; display:none; margin-top:15px;"></div>
+    </div>
+
+    <div id="resource-select-form" style="display:none;">
+        <h2>Select Resource to Modify</h2>
+        <select id="resource-select" style="width:100%; margin:10px 0; padding:8px;">
+            <option value="">-- Select a resource --</option>
+        </select>
+        <button id="resource-select-submit">Modify Selected</button>
+        <button id="resource-select-cancel">Cancel</button>
+        <div id="resource-select-error" style="color:red; display:none; margin-top:15px;"></div>
+    </div>
+
+    <div id="modify-resource-form" style="display:none;">
+        <h2 id="modify-resource-title">Modify Resource</h2>
+        <input type="text" id="modify-resource-name" placeholder="Resource Name">
+        <input type="text" id="modify-resource-comment" placeholder="Comment (optional)">
+        <button id="modify-resource-submit">Modify</button>
+        <button id="modify-resource-cancel">Cancel</button>
+        <div id="modify-resource-error" style="color:red; display:none; margin-top:15px;"></div>
+        <div id="modify-resource-success" style="color:green; display:none; margin-top:15px;"></div>
+    </div>
+
+    <div id="add-user-form" style="display:none;">
+        <h2>Add New User</h2>
+        <input type="text" id="user-name" placeholder="User Name (required)">
+        <input type="email" id="user-email" placeholder="Email (required)">
+        <input type="password" id="user-password" placeholder="Password (required)">
+        <button id="add-user-submit">Add</button>
+        <button id="add-user-cancel">Cancel</button>
+        <div id="add-user-error" style="color:red; display:none; margin-top:15px;"></div>
+        <div id="add-user-success" style="color:green; display:none; margin-top:15px;"></div>
+    </div>
+
+    <div id="modify-user-form" style="display:none;">
+        <h2 id="modify-user-title">Modify User</h2>
+        <input type="email" id="modify-user-email" placeholder="Email">
+        <input type="password" id="modify-user-password" placeholder="New Password (optional)">
+        <button id="modify-user-submit">Modify</button>
+        <button id="modify-user-cancel">Cancel</button>
+        <div id="modify-user-error" style="color:red; display:none; margin-top:15px;"></div>
+        <div id="modify-user-success" style="color:green; display:none; margin-top:15px;"></div>
+    </div>
+
+    <div id="main-content">
+        <p>Welcome to Reservia Resource Reservation System</p>
+    </div>
+    <div id="resource-pool-container">
+
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // Initialize jQuery UI elements
+            $('button').button();
+            $('#login-form').dialog({
+                autoOpen: false,
+                modal: true,
+                width: 350,
+                resizable: false,
+                draggable: true,
+                title: 'Login to Reservia'
+            });
+
+            $('#modify-form').dialog({
+                autoOpen: false,
+                modal: true,
+                width: 400,
+                resizable: false,
+                draggable: true,
+                title: 'Modify User Data'
+            });
+
+            $('#add-resource-form').dialog({
+                autoOpen: false,
+                modal: true,
+                width: 400,
+                resizable: false,
+                draggable: true,
+                title: 'Add New Resource'
+            });
+
+            $('#resource-select-form').dialog({
+                autoOpen: false,
+                modal: true,
+                width: 400,
+                resizable: false,
+                draggable: true,
+                title: 'Select Resource to Modify'
+            });
+
+            $('#modify-resource-form').dialog({
+                autoOpen: false,
+                modal: true,
+                width: 400,
+                resizable: false,
+                draggable: true,
+                title: 'Modify Resource'
+            });
+
+            $('#add-user-form').dialog({
+                autoOpen: false,
+                modal: true,
+                width: 400,
+                resizable: false,
+                draggable: true,
+                title: 'Add New User'
+            });
+
+            $('#modify-user-form').dialog({
+                autoOpen: false,
+                modal: true,
+                width: 400,
+                resizable: false,
+                draggable: true,
+                title: 'Modify User'
+            });
+
+            console.log('Page loaded, checking session...');
+            checkSession();
+
+            $('#login-btn').click(function() {
+                showLoginForm();
+            });
+
+            $('#logout-btn').click(function() {
+                logout();
+            });
+
+            $('#login-submit').click(function() {
+                login();
+            });
+
+            $('#login-cancel').click(function() {
+                hideLoginForm();
+            });
+
+            $('#modify-btn').click(function() {
+                if (isAnyDialogOpen()) return; // Disable if dialog is open
+                showModifyForm();
+            });
+
+            $('#modify-submit').click(function() {
+                modifyUser();
+            });
+
+            $('#modify-cancel').click(function() {
+                hideModifyForm();
+            });
+
+            $('#add-resource-submit').click(function() {
+                addResource();
+            });
+
+            $('#add-resource-cancel').click(function() {
+                hideAddResourceForm();
+            });
+
+            $('#resource-select-submit').click(function() {
+                selectResourceToModify();
+            });
+
+            $('#resource-select-cancel').click(function() {
+                hideResourceSelectForm();
+            });
+
+            $('#modify-resource-submit').click(function() {
+                modifyResource();
+            });
+
+            $('#modify-resource-cancel').click(function() {
+                hideModifyResourceForm();
+            });
+
+            $('#add-user-submit').click(function() {
+                addUser();
+            });
+
+            $('#add-user-cancel').click(function() {
+                hideAddUserForm();
+            });
+
+            $('#modify-user-submit').click(function() {
+                modifySelectedUser();
+            });
+
+            $('#modify-user-cancel').click(function() {
+                hideModifyUserForm();
+            });
+
+            // Clear error messages when typing in forms
+            $('#resource-name, #resource-comment').on('input', function() {
+                clearAddResourceMessages();
+            });
+
+            $('#modify-email, #modify-password').on('input', function() {
+                clearModifyMessages();
+            });
+
+            $('#modify-resource-name, #modify-resource-comment').on('input', function() {
+                clearModifyResourceMessages();
+            });
+
+            $('#user-name, #user-email, #user-password').on('input', function() {
+                clearAddUserMessages();
+            });
+
+            $('#modify-user-email, #modify-user-password').on('input', function() {
+                clearModifyUserMessages();
+            });
+
+            // Manage Resource dropdown functionality - click to toggle
+            $('#manage-resource-btn').click(function(e) {
+                e.stopPropagation();
+                if (isAnyDialogOpen()) return; // Disable if dialog is open
+                $('#user-dropdown').hide(); // Close user dropdown
+                $('#resource-dropdown').toggle();
+            });
+
+            // Manage User dropdown functionality - click to toggle
+            $('#manage-user-btn').click(function(e) {
+                e.stopPropagation();
+                if (isAnyDialogOpen()) return; // Disable if dialog is open
+                $('#resource-dropdown').hide(); // Close resource dropdown
+                $('#user-dropdown').toggle();
+            });
+
+            // Hide all dropdowns when clicking outside
+            $(document).click(function() {
+                $('#resource-dropdown').hide();
+                $('#user-dropdown').hide();
+            });
+
+            // Prevent dropdowns from closing when clicking inside them
+            $('#resource-dropdown, #user-dropdown').click(function(e) {
+                e.stopPropagation();
+            });
+
+            // Handle user dropdown menu item clicks
+            $('#user-dropdown .dropdown-item').click(function(e) {
+                const action = $(this).data('action');
+
+                if (action === 'add') {
+                    $('#user-dropdown').hide();
+                    showAddUserForm();
+                } else if (action === 'remove') {
+                    $('#user-dropdown').hide();
+                    console.log('Remove user clicked');
+                    // TODO: Implement remove user functionality
+                }
+                // Note: modify action is handled by hover, not click
+            });
+
+            // Resource dropdown item clicks
+            $('#resource-dropdown .dropdown-item').click(function(e) {
+                const action = $(this).data('action');
+
+                if (action === 'add') {
+                    $('#resource-dropdown').hide();
+                    showAddResourceForm();
+                } else if (action === 'remove') {
+                    $('#resource-dropdown').hide();
+                    console.log('Resource management action:', action);
+                    // TODO: Add functionality for remove action
+                }
+                // Note: modify action is handled by hover, not click
+            });
+
+            // Hover-based submenu for modify resources
+            $('#resource-dropdown .dropdown-submenu').mouseenter(function() {
+                loadResourcesIntoSubmenu();
+                $('#modify-submenu').show();
+            });
+
+            $('#resource-dropdown .dropdown-submenu').mouseleave(function() {
+                setTimeout(() => {
+                    if (!$('#modify-submenu:hover').length) {
+                        $('#modify-submenu').hide();
+                    }
+                }, 100);
+            });
+
+            // Keep resource submenu open when hovering over it
+            $('#modify-submenu').mouseenter(function() {
+                $(this).show();
+            });
+
+            $('#modify-submenu').mouseleave(function() {
+                $(this).hide();
+            });
+
+            // Hover-based submenu for modify users
+            $('#user-dropdown .dropdown-submenu').mouseenter(function() {
+                loadUsersIntoSubmenu();
+                $('#modify-user-submenu').show();
+            });
+
+            $('#user-dropdown .dropdown-submenu').mouseleave(function() {
+                setTimeout(() => {
+                    if (!$('#modify-user-submenu:hover').length) {
+                        $('#modify-user-submenu').hide();
+                    }
+                }, 100);
+            });
+
+            // Keep user submenu open when hovering over it
+            $('#modify-user-submenu').mouseenter(function() {
+                $(this).show();
+            });
+
+            $('#modify-user-submenu').mouseleave(function() {
+                $(this).hide();
+            });
+
+            // Handle resource clicks in submenu
+            $('#modify-submenu').on('click', '.submenu-resource-item', function(e) {
+                e.stopPropagation();
+
+                const resourceId = $(this).data('resource-id');
+                const resourceName = $(this).data('resource-name');
+                const resourceComment = $(this).data('resource-comment');
+
+                $('#resource-dropdown').hide();
+                $('#modify-submenu').hide();
+                showModifyResourceForm(resourceId, resourceName, resourceComment);
+            });
+
+            // Handle user clicks in submenu
+            $('#modify-user-submenu').on('click', '.submenu-user-item', function(e) {
+                e.stopPropagation();
+
+                const userId = $(this).data('user-id');
+                const userName = $(this).data('user-name');
+                const userEmail = $(this).data('user-email');
+
+                $('#user-dropdown').hide();
+                $('#modify-user-submenu').hide();
+                showModifyUserForm(userId, userName, userEmail);
+            });
+
+            // Initialize ResourcePool
+            ResourcePool.getInstance();
+
+            // Initialize resource manager (event listeners only - no auto-refresh until login)
+            initializeResourceManager();
+        });
+
+
+
+        // ===== WINDOW RESIZE HANDLER =====
+        // Update layout when window is resized
+        $(window).resize(function() {
+            ResourcePool.getInstance().updateLayout();
+        });
+
+        // ===== DIALOG STATE CHECKER =====
+        function isAnyDialogOpen() {
+            return $('#login-form').dialog('isOpen') ||
+                   $('#modify-form').dialog('isOpen') ||
+                   $('#add-resource-form').dialog('isOpen') ||
+                   $('#resource-select-form').dialog('isOpen') ||
+                   $('#modify-resource-form').dialog('isOpen') ||
+                   $('#add-user-form').dialog('isOpen') ||
+                   $('#modify-user-form').dialog('isOpen');
+        }
+
+        // ===== CLOSE DROPDOWNS WHEN DIALOG OPENS =====
+        function closeAllDropdowns() {
+            $('#resource-dropdown').hide();
+            $('#user-dropdown').hide();
+        }
+
+        // ===== DISABLE HOVER EFFECTS WHEN DIALOG IS OPEN =====
+        function updateButtonStates() {
+            if (isAnyDialogOpen()) {
+                $('#modify-btn, #manage-resource-btn, #manage-user-btn').addClass('dialog-disabled');
+            } else {
+                $('#modify-btn, #manage-resource-btn, #manage-user-btn').removeClass('dialog-disabled');
+            }
+        }
+
+        // Monitor dialog state changes
+        setInterval(updateButtonStates, 100);
+
+        function checkSession() {
+            $.ajax({
+                url: '/session/status',
+                method: 'GET',
+                success: function(response) {
+                    console.log('Session check response:', response);
+                    if (response.logged_in) {
+                        showLoggedInUI(response);
+                    } else {
+                        showLoggedOutUI();
+                    }
+                },
+                error: function(xhr, status, error) {
+//                    console.log('Session check error:', xhr.status, status, error);
+                    showLoggedOutUI();
+                }
+            });
+        }
+
+        async function login() {
+            const username = $('#username').val();
+            const password = $('#password').val();
+
+            if (!username || !password) {
+                showError('Please enter username and password');
+                return;
+            }
+
+            try {
+                // Hash password on client side before sending
+                const hashedPassword = await hashPassword(password);
+
+                $.ajax({
+                    url: '/session/login',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({name: username, password: hashedPassword}),
+                    success: function(response) {
+                        hideLoginForm();
+                        checkSession(); // Refresh session data
+                        clearError();
+                    },
+                    error: function(xhr) {
+                        showError('Login failed');
+                    }
+                });
+            } catch (error) {
+                showError('Password hashing failed');
+            }
+        }
+
+        function logout() {
+            $.ajax({
+                url: '/session/logout',
+                method: 'POST',
+                success: function() {
+                    showLoggedOutUI();
+                },
+                error: function() {
+                    showLoggedOutUI();
+                }
+            });
+        }
+
+        function showLoggedInUI(response) {
+            // Update global session data
+            SessionManager.setSessionData(response);
+
+            $('#login-btn').hide();
+            $('#logout-btn').show();
+            $('#modify-btn').show();
+
+            // Show Manage Resource and Manage User buttons only for admin users
+            if (response.is_admin) {
+                $('#manage-resource-container').show();
+                $('#manage-user-container').show();
+            } else {
+                $('#manage-resource-container').hide();
+                $('#manage-user-container').hide();
+            }
+
+            // Admin warning is handled by SessionManager.setSessionData()
+
+            const tooltipContent = `<b>${response.user_name}</b><br>user_id: ${response.user_id}<br>user_email: ${response.user_email}<br>is_admin: ${response.is_admin}`;
+            $('#logout-btn').attr('title', tooltipContent).tooltip({
+                content: tooltipContent,
+                position: { my: "left top+15", at: "left bottom" }
+            });
+
+            // Load resources and start auto-refresh for logged-in user
+            loadResourcesFromServer();
+            startAutoRefresh();
+        }
+
+        function showLoggedOutUI() {
+            // Clear global session data
+            SessionManager.clearSessionData();
+
+            $('#login-btn').show();
+            $('#logout-btn').hide();
+            $('#modify-btn').hide();
+            $('#manage-resource-container').hide();
+            $('#manage-user-container').hide();
+
+            // Admin warning reset is handled by SessionManager.clearSessionData()
+
+            // Only destroy tooltip if it was initialized
+            if ($('#logout-btn').data('ui-tooltip')) {
+                $('#logout-btn').tooltip('destroy');
+            }
+
+            hideLoginForm();
+            hideModifyForm();
+            hideAddResourceForm();
+            hideResourceSelectForm();
+            hideModifyResourceForm();
+            hideAddUserForm();
+            hideModifyUserForm();
+
+            // Stop auto-refresh and clear resources for logged-out user
+            stopAutoRefresh();
+            clearResourcesOnLogout();
+        }
+
+        function showLoginForm() {
+            closeAllDropdowns();
+            $('#login-form').dialog('open');
+            $('#username').val('');
+            $('#password').val('');
+            clearError();
+        }
+
+        function hideLoginForm() {
+            $('#login-form').dialog('close');
+            clearError();
+        }
+
+        function showError(message) {
+            $('#login-error').text(message).show();
+        }
+
+        function clearError() {
+            $('#login-error').hide();
+        }
+
+        function showModifyForm() {
+            closeAllDropdowns();
+            const userName = getCurrentUserNameFromTooltip();
+            const title = userName ? `Modify ${userName} Data` : 'Modify User Data';
+            $('#modify-title').text(title);
+            $('#modify-form').dialog('open');
+            $('#modify-email').val('');
+            $('#modify-password').val('');
+            clearModifyMessages();
+        }
+
+        function hideModifyForm() {
+            $('#modify-form').dialog('close');
+            clearModifyMessages();
+        }
+
+        async function modifyUser() {
+            const email = $('#modify-email').val();
+            const password = $('#modify-password').val();
+
+            if (!email && !password) {
+                showModifyError('Please enter at least one field to modify');
+                return;
+            }
+
+            const currentUserId = getCurrentUserIdFromTooltip();
+            if (!currentUserId) {
+                showModifyError('Unable to get current user ID');
+                return;
+            }
+
+            try {
+                const data = { user_id: currentUserId };
+                if (email) data.email = email;
+                if (password) {
+                    // Hash password on client side before sending
+                    data.password = await hashPassword(password);
+                }
+
+                $.ajax({
+                    url: '/admin/user/modify',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data),
+                    success: function(response) {
+                        showModifySuccess('User data modified successfully');
+                        // Update session data by checking session again
+                        setTimeout(() => {
+                            checkSession();
+                            hideModifyForm();
+                        }, 1500);
+                    },
+                    error: function(xhr) {
+                        try {
+                            const errorResponse = JSON.parse(xhr.responseText);
+                            showModifyError(errorResponse.error || 'Modification failed');
+                        } catch (e) {
+                            showModifyError('Modification failed');
+                        }
+                    }
+                });
+            } catch (error) {
+                showModifyError('Password hashing failed');
+            }
+        }
+
+        function getCurrentUserIdFromTooltip() {
+            return SessionManager.getCurrentUserId();
+        }
+
+        function getCurrentUserNameFromTooltip() {
+            return SessionManager.getCurrentUserName();
+        }
+
+        function showModifyError(message) {
+            $('#modify-error').text(message).show();
+            $('#modify-success').hide();
+        }
+
+        function showModifySuccess(message) {
+            $('#modify-success').text(message).show();
+            $('#modify-error').hide();
+        }
+
+        function clearModifyMessages() {
+            $('#modify-error').hide();
+            $('#modify-success').hide();
+        }
+
+        function showAddResourceForm() {
+            closeAllDropdowns();
+            $('#add-resource-form').dialog('open');
+            $('#resource-name').val('');
+            $('#resource-comment').val('');
+            clearAddResourceMessages();
+        }
+
+        function hideAddResourceForm() {
+            $('#add-resource-form').dialog('close');
+            clearAddResourceMessages();
+        }
+
+        function addResource() {
+            const name = $('#resource-name').val().trim();
+            const comment = $('#resource-comment').val().trim();
+
+            if (!name) {
+                showAddResourceError('Resource name is required');
+                return;
+            }
+
+            if (name.length > GUI_CONFIG['resource-card-title-length']) {
+                showAddResourceError(`Resource name must be ${GUI_CONFIG['resource-card-title-length']} characters or less`);
+                return;
+            }
+
+            const data = { name: name };
+            if (comment) {
+                data.comment = comment;
+            }
+
+            $.ajax({
+                url: '/admin/resource/add',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(data),
+                success: function(response) {
+                    showAddResourceSuccess('Resource added successfully');
+                    // Refresh resources after successful addition
+                    setTimeout(() => {
+                        loadResourcesFromServer();
+                        hideAddResourceForm();
+                    }, 1500);
+                },
+                error: function(xhr) {
+                    try {
+                        const errorResponse = JSON.parse(xhr.responseText);
+                        showAddResourceError(errorResponse.error || 'Failed to add resource');
+                    } catch (e) {
+                        showAddResourceError('Failed to add resource');
+                    }
+                }
+            });
+        }
+
+        function showAddResourceError(message) {
+            $('#add-resource-error').text(message).show();
+            $('#add-resource-success').hide();
+        }
+
+        function showAddResourceSuccess(message) {
+            $('#add-resource-success').text(message).show();
+            $('#add-resource-error').hide();
+        }
+
+        function clearAddResourceMessages() {
+            $('#add-resource-error').hide();
+            $('#add-resource-success').hide();
+        }
+
+        function showResourceSelectForm() {
+            closeAllDropdowns();
+            // Load resources into dropdown
+            loadResourcesIntoDropdown();
+            $('#resource-select-form').dialog('open');
+            $('#resource-select').val('');
+            clearResourceSelectMessages();
+        }
+
+        function hideResourceSelectForm() {
+            $('#resource-select-form').dialog('close');
+            clearResourceSelectMessages();
+        }
+
+        function loadResourcesIntoDropdown() {
+            $.ajax({
+                url: '/info/resources',
+                method: 'GET',
+                success: function(response) {
+                    const select = $('#resource-select');
+                    select.empty();
+                    select.append('<option value="">-- Select a resource --</option>');
+
+                    if (response.resources && response.resources.length > 0) {
+                        response.resources.forEach(resource => {
+                            select.append(`<option value="${resource.id}" data-name="${resource.name}" data-comment="${resource.comment || ''}">${resource.name}</option>`);
+                        });
+                    }
+                },
+                error: function(xhr) {
+                    showResourceSelectError('Failed to load resources');
+                }
+            });
+        }
+
+        function selectResourceToModify() {
+            const selectedOption = $('#resource-select option:selected');
+            const resourceId = selectedOption.val();
+
+            if (!resourceId) {
+                showResourceSelectError('Please select a resource');
+                return;
+            }
+
+            const resourceName = selectedOption.data('name');
+            const resourceComment = selectedOption.data('comment');
+
+            hideResourceSelectForm();
+            showModifyResourceForm(resourceId, resourceName, resourceComment);
+        }
+
+        function showResourceSelectError(message) {
+            $('#resource-select-error').text(message).show();
+        }
+
+        function clearResourceSelectMessages() {
+            $('#resource-select-error').hide();
+        }
+
+        function showModifyResourceForm(resourceId, name, comment) {
+            closeAllDropdowns();
+            $('#modify-resource-title').text(`Modify Resource: ${name}`);
+            $('#modify-resource-name').val(name);
+            $('#modify-resource-comment').val(comment || '');
+            $('#modify-resource-form').data('resource-id', resourceId);
+            $('#modify-resource-form').dialog('open');
+            clearModifyResourceMessages();
+        }
+
+        function hideModifyResourceForm() {
+            $('#modify-resource-form').dialog('close');
+            clearModifyResourceMessages();
+        }
+
+        function modifyResource() {
+            const resourceId = $('#modify-resource-form').data('resource-id');
+            const name = $('#modify-resource-name').val().trim();
+            const comment = $('#modify-resource-comment').val().trim();
+
+            if (!name) {
+                showModifyResourceError('Resource name is required');
+                return;
+            }
+
+            if (name.length > GUI_CONFIG['resource-card-title-length']) {
+                showModifyResourceError(`Resource name must be ${GUI_CONFIG['resource-card-title-length']} characters or less`);
+                return;
+            }
+
+            const data = {
+                resource_id: resourceId,
+                name: name,
+                comment: comment
+            };
+
+            $.ajax({
+                url: '/admin/resource/modify',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(data),
+                success: function(response) {
+                    showModifyResourceSuccess('Resource modified successfully');
+                    // Refresh page after successful modification
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                },
+                error: function(xhr) {
+                    try {
+                        const errorResponse = JSON.parse(xhr.responseText);
+                        showModifyResourceError(errorResponse.error || 'Failed to modify resource');
+                    } catch (e) {
+                        showModifyResourceError('Failed to modify resource');
+                    }
+                }
+            });
+        }
+
+        function showModifyResourceError(message) {
+            $('#modify-resource-error').text(message).show();
+            $('#modify-resource-success').hide();
+        }
+
+        function showModifyResourceSuccess(message) {
+            $('#modify-resource-success').text(message).show();
+            $('#modify-resource-error').hide();
+        }
+
+        function clearModifyResourceMessages() {
+            $('#modify-resource-error').hide();
+            $('#modify-resource-success').hide();
+        }
+
+        function loadResourcesIntoSubmenu() {
+            $.ajax({
+                url: '/info/resources',
+                method: 'GET',
+                success: function(response) {
+                    const submenu = $('#modify-submenu');
+                    submenu.empty();
+
+                    if (response.resources && response.resources.length > 0) {
+                        response.resources.forEach(resource => {
+                            const item = $('<div></div>')
+                                .addClass('submenu-resource-item')
+                                .attr('data-resource-id', resource.id)
+                                .attr('data-resource-name', resource.name)
+                                .attr('data-resource-comment', resource.comment || '')
+                                .text(resource.name);
+                            submenu.append(item);
+                        });
+                    } else {
+                        submenu.append('<div style="padding: 8px 12px; color: #999;">No resources available</div>');
+                    }
+                },
+                error: function(xhr) {
+                    const submenu = $('#modify-submenu');
+                    submenu.empty();
+                    submenu.append('<div style="padding: 8px 12px; color: #f00;">Failed to load resources</div>');
+                }
+            });
+        }
+
+        function loadUsersIntoSubmenu() {
+            $.ajax({
+                url: '/info/users',
+                method: 'GET',
+                success: function(response) {
+                    const submenu = $('#modify-user-submenu');
+                    submenu.empty();
+
+                    if (response.users && response.users.length > 0) {
+                        response.users.forEach(user => {
+                            const item = $('<div></div>')
+                                .addClass('submenu-user-item')
+                                .attr('data-user-id', user.id)
+                                .attr('data-user-name', user.name)
+                                .attr('data-user-email', user.email)
+                                .text(user.name);
+                            submenu.append(item);
+                        });
+                    } else {
+                        submenu.append('<div style="padding: 8px 12px; color: #999;">No users available</div>');
+                    }
+                },
+                error: function(xhr) {
+                    const submenu = $('#modify-user-submenu');
+                    submenu.empty();
+                    submenu.append('<div style="padding: 8px 12px; color: #f00;">Failed to load users</div>');
+                }
+            });
+        }
+
+        function showModifyUserForm(userId, userName, userEmail) {
+            closeAllDropdowns();
+            $('#modify-user-title').text(`Modify User: ${userName}`);
+            $('#modify-user-email').val(userEmail);
+            $('#modify-user-password').val('');
+            $('#modify-user-form').data('user-id', userId);
+            $('#modify-user-form').dialog('open');
+            clearModifyUserMessages();
+        }
+
+        function hideModifyUserForm() {
+            $('#modify-user-form').dialog('close');
+            clearModifyUserMessages();
+        }
+
+        async function modifySelectedUser() {
+            const userId = $('#modify-user-form').data('user-id');
+            const email = $('#modify-user-email').val().trim();
+            const password = $('#modify-user-password').val();
+
+            if (!email) {
+                showModifyUserError('Email is required');
+                return;
+            }
+
+            try {
+                const data = {
+                    user_id: userId,
+                    email: email
+                };
+
+                if (password) {
+                    data.password = await hashPassword(password);
+                }
+
+                $.ajax({
+                    url: '/admin/user/modify',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data),
+                    success: function(response) {
+                        showModifyUserSuccess('User modified successfully');
+                        setTimeout(() => {
+                            hideModifyUserForm();
+                        }, 1500);
+                    },
+                    error: function(xhr) {
+                        try {
+                            const errorResponse = JSON.parse(xhr.responseText);
+                            showModifyUserError(errorResponse.error || 'Failed to modify user');
+                        } catch (e) {
+                            showModifyUserError('Failed to modify user');
+                        }
+                    }
+                });
+            } catch (error) {
+                showModifyUserError('Password hashing failed');
+            }
+        }
+
+        function showModifyUserError(message) {
+            $('#modify-user-error').text(message).show();
+            $('#modify-user-success').hide();
+        }
+
+        function showModifyUserSuccess(message) {
+            $('#modify-user-success').text(message).show();
+            $('#modify-user-error').hide();
+        }
+
+        function clearModifyUserMessages() {
+            $('#modify-user-error').hide();
+            $('#modify-user-success').hide();
+        }
+
+        // Auto-logout on session expiry
+        $(document).ajaxError(function(event, xhr, settings) {
+            if (xhr.status === 401 && settings.url !== '/session/status') {
+                showLoggedOutUI();
+                showError('Session expired. Please log in again.');
+            }
+        });
+    </script>
+</body>
+</html>

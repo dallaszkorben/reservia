@@ -155,14 +155,9 @@ function setupResourceEventListeners() {
             },
             error: function(xhr, status, error) {
                 // Step 2: Log reservation errors to console
-                //console.error(`Reservation failed for resource ${data.resource_name} (${data.resource_id}):`);
-                //console.error('Status:', xhr.status);
-                //console.error('Error:', error);
-
-                //// Try to parse and log the error response
+                // Log reservation errors
                 try {
                     const errorResponse = JSON.parse(xhr.responseText);
-                    //console.error('Server response:', errorResponse);
                     console.log('Reservation was not successful:', errorResponse);
                 } catch (e) {
                     console.error('Raw response:', xhr.responseText);
@@ -262,8 +257,8 @@ function startAutoRefresh() {
         clearInterval(autoRefreshInterval);
     }
 
-    // Start auto-refresh system: Update resources every 5 seconds
-    autoRefreshInterval = setInterval(refreshResourcesFromServer, 5000);
+    // Start auto-refresh system
+    autoRefreshInterval = setInterval(refreshResourcesFromServer, GUI_CONFIG['auto-refresh-interval']);
     console.log('Auto-refresh started for logged-in user');
 }
 

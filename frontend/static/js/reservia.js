@@ -1,13 +1,4 @@
-// ===== GLOBAL GUI CONFIGURATION =====
-// Centralized configuration for all GUI dimensions and styling
-// This allows easy customization of the entire interface from one location
-const GUI_CONFIG = {
-    'resource-card-width': 250,           // Width of each resource card in pixels
-    'resource-card-height': 400,          // Height of each resource card in pixels
-    'resource-card-list-font-size': 15,   // Font size for user names in the resource card
-    'resource-card-title-font-size': 25,  // Font size for resource title
-    'resource-card-title-length': 25      // Maximum characters allowed in resource name
-};
+// GUI_CONFIG is now imported from config.js
 
 // ===== LAYOUT MANAGER =====
 // Static utility class that calculates responsive grid positioning for resource cards
@@ -21,7 +12,7 @@ class LayoutManager {
      * @returns {object} Layout information (rectangles_per_row, total_rows, screen_width, resource_count)
      */
     static calculateLayout(resource_count, config) {
-        const screen_width = $(window).width() - 40;  // Leave 40px margin
+        const screen_width = $(window).width() - GUI_CONFIG['screen-margin'];
         const rectangle_with_gap = config.resource_width + config.resource_gap;
         const rectangles_per_row = Math.floor(screen_width / rectangle_with_gap);
         const total_rows = Math.max(1, Math.ceil(resource_count / rectangles_per_row));
@@ -57,7 +48,7 @@ class LayoutManager {
         }
 
         const x_position = start_x + (col * (config.resource_width + config.resource_gap));
-        const y_position = (row * (config.resource_height + config.resource_gap)) + 20;  // 20px top margin
+        const y_position = (row * (config.resource_height + config.resource_gap)) + GUI_CONFIG['layout-top-margin'];
 
         return { x: x_position, y: y_position };
     }
@@ -83,6 +74,9 @@ class ResourcePool {
         this.listeners = {};                             // Event listeners for custom events
         this.alignment = alignment;                      // Grid alignment preference
         ResourcePool.instance = this;
+
+        // Set initial minimum height
+        this.updateLayout();
     }
 
     /**
@@ -132,6 +126,13 @@ class ResourcePool {
 
         // Adjust container height to fit all rows
         this.container.height((layout.total_rows * (config.resource_height + config.resource_gap)) - config.resource_gap + 5);
+
+//        // Calculate container height - minimum of one resource card height
+//        const minHeight = config.resource_height + GUI_CONFIG['layout-top-margin'] + 40; // 40px for padding
+//        const calculatedHeight = (layout.total_rows * (config.resource_height + config.resource_gap)) - config.resource_gap + 5;
+//        const containerHeight = Math.max(minHeight, calculatedHeight);
+//
+//        this.container.height(containerHeight);
 
         // Update position of each resource card
         this.resources.forEach((resource_card, index) => {
@@ -194,11 +195,11 @@ class ResourceCard {
     // Static configuration shared by all resource cards
     // Links to global GUI_CONFIG for consistent styling
     static config = {
-        resource_width: GUI_CONFIG['resource-card-width'],    // Card width in pixels
-        resource_height: GUI_CONFIG['resource-card-height'],  // Card height in pixels
-        resource_gap: 20,                                     // Space between cards
-        resource_list_side_gap: 6,                           // Left/right padding inside card
-        resource_list_top_gap: 50,                           // Space reserved for title area
+        resource_width: GUI_CONFIG['resource-card-width'],
+        resource_height: GUI_CONFIG['resource-card-height'],
+        resource_gap: GUI_CONFIG['resource-gap'],
+        resource_list_side_gap: GUI_CONFIG['resource-list-side-gap'],
+        resource_list_top_gap: GUI_CONFIG['resource-list-top-gap']
     };
 
     /**
