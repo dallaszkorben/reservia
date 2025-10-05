@@ -4,6 +4,7 @@ import json
 import shutil
 import logging
 import time
+import hashlib
 from pathlib import Path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
@@ -20,6 +21,10 @@ HOME = str(Path.home())
 TEST_DIR_NAME = '.reservia_test_admin'
 TEST_APP_NAME = 'reservia_test_admin'
 TEST_DB_NAME = 'test_admin.db'
+
+def hash_password(password):
+    """Hash password using SHA-256 (same as client-side)"""
+    return hashlib.sha256(password.encode()).hexdigest()
 
 def cleanup_test_databases():
     """Clean up test database files and reset singleton"""
@@ -63,14 +68,14 @@ def test_admin_user_add():
         operation += 1
         print(f"\n{operation}. Admin login test")
         login_response = client.post('/session/login',
-                                   data=json.dumps({'name': 'admin', 'password': 'admin'}),
+                                   data=json.dumps({'name': 'admin', 'password': hash_password('admin')}),
                                    content_type='application/json')
         assert login_response.status_code == 200
 
         operation += 1
         print(f"\n{operation}. Successful user creation test")
         response = client.post('/admin/user/add',
-                             data=json.dumps({'name': 'testuser', 'email': 'test@example.com', 'password': 'pass123'}),
+                             data=json.dumps({'name': 'testuser', 'email': 'test@example.com', 'password': hash_password('pass123')}),
                              content_type='application/json')
         assert response.status_code == 201
         data = json.loads(response.data)
@@ -80,7 +85,7 @@ def test_admin_user_add():
         operation += 1
         print(f"\n{operation}. Duplicate username test")
         response = client.post('/admin/user/add',
-                             data=json.dumps({'name': 'testuser', 'email': 'different@example.com', 'password': 'pass456'}),
+                             data=json.dumps({'name': 'testuser', 'email': 'different@example.com', 'password': hash_password('pass456')}),
                              content_type='application/json')
         assert response.status_code == 409
         data = json.loads(response.data)
@@ -91,7 +96,7 @@ def test_admin_user_add():
         operation += 1
         print(f"\n{operation}. Duplicate email test")
         response = client.post('/admin/user/add',
-                             data=json.dumps({'name': 'differentuser', 'email': 'test@example.com', 'password': 'pass789'}),
+                             data=json.dumps({'name': 'differentuser', 'email': 'test@example.com', 'password': hash_password('pass789')}),
                              content_type='application/json')
         assert response.status_code == 409
         data = json.loads(response.data)
@@ -130,7 +135,7 @@ def test_admin_resource_add():
         operation += 1
         print(f"\n{operation}. Admin login test")
         login_response = client.post('/session/login',
-                                   data=json.dumps({'name': 'admin', 'password': 'admin'}),
+                                   data=json.dumps({'name': 'admin', 'password': hash_password('admin')}),
                                    content_type='application/json')
         assert login_response.status_code == 200
 
@@ -193,12 +198,12 @@ def test_endpoint_reservation_lifecycle():
 
     with app.test_client() as client:
         # Setup: Create users and resources
-        client.post('/session/login', data=json.dumps({'name': 'admin', 'password': 'admin'}), content_type='application/json')
+        client.post('/session/login', data=json.dumps({'name': 'admin', 'password': hash_password('admin')}), content_type='application/json')
 
-        client.post('/admin/user/add', data=json.dumps({'name': 'user1', 'email': 'user1@example.com', 'password': 'pass1'}), content_type='application/json')
-        client.post('/admin/user/add', data=json.dumps({'name': 'user2', 'email': 'user2@example.com', 'password': 'pass2'}), content_type='application/json')
-        client.post('/admin/user/add', data=json.dumps({'name': 'user3', 'email': 'user3@example.com', 'password': 'pass3'}), content_type='application/json')
-        client.post('/admin/user/add', data=json.dumps({'name': 'user4', 'email': 'user4@example.com', 'password': 'pass4'}), content_type='application/json')
+        client.post('/admin/user/add', data=json.dumps({'name': 'user1', 'email': 'user1@example.com', 'password': hash_password('pass1')}), content_type='application/json')
+        client.post('/admin/user/add', data=json.dumps({'name': 'user2', 'email': 'user2@example.com', 'password': hash_password('pass2')}), content_type='application/json')
+        client.post('/admin/user/add', data=json.dumps({'name': 'user3', 'email': 'user3@example.com', 'password': hash_password('pass3')}), content_type='application/json')
+        client.post('/admin/user/add', data=json.dumps({'name': 'user4', 'email': 'user4@example.com', 'password': hash_password('pass4')}), content_type='application/json')
 
         resp1 = client.post('/admin/resource/add', data=json.dumps({'name': 'resource1', 'comment': 'Test resource 1'}), content_type='application/json')
         resp2 = client.post('/admin/resource/add', data=json.dumps({'name': 'resource2', 'comment': 'Test resource 2'}), content_type='application/json')
@@ -216,18 +221,18 @@ def test_endpoint_reservation_lifecycle():
 
         # User1-4 request resource1
         for user in ['user1', 'user2', 'user3', 'user4']:
-            client.post('/session/login', data=json.dumps({'name': user, 'password': f'pass{user[-1]}'}), content_type='application/json')
+            client.post('/session/login', data=json.dumps({'name': user, 'password': hash_password(f'pass{user[-1]}')}), content_type='application/json')
             client.post('/reservation/request', data=json.dumps({'resource_id': resource1_id}), content_type='application/json')
             client.post('/session/logout')
 
         # User1-2 request resource2
         for user in ['user1', 'user2']:
-            client.post('/session/login', data=json.dumps({'name': user, 'password': f'pass{user[-1]}'}), content_type='application/json')
+            client.post('/session/login', data=json.dumps({'name': user, 'password': hash_password(f'pass{user[-1]}')}), content_type='application/json')
             client.post('/reservation/request', data=json.dumps({'resource_id': resource2_id}), content_type='application/json')
             client.post('/session/logout')
 
         # Get reservations for resource1
-        client.post('/session/login', data=json.dumps({'name': 'user1', 'password': 'pass1'}), content_type='application/json')
+        client.post('/session/login', data=json.dumps({'name': 'user1', 'password': hash_password('pass1')}), content_type='application/json')
         resp = client.get(f'/reservation/active?resource_id={resource1_id}')
         reservations1 = json.loads(resp.data)['reservations']
 
@@ -261,7 +266,7 @@ def test_endpoint_reservation_lifecycle():
         operation += 1
         print(f"\n{operation}. User1 cancels (not successfuly) reservation on resource1")
 
-        client.post('/session/login', data=json.dumps({'name': 'user1', 'password': 'pass1'}), content_type='application/json')
+        client.post('/session/login', data=json.dumps({'name': 'user1', 'password': hash_password('pass1')}), content_type='application/json')
         client.post('/reservation/cancel', data=json.dumps({'resource_id': resource1_id}), content_type='application/json')
 
         # Get updated reservations for resource1
@@ -298,7 +303,7 @@ def test_endpoint_reservation_lifecycle():
         operation += 1
         print(f"\n{operation}. User2 cancels reservation on resource1")
 
-        client.post('/session/login', data=json.dumps({'name': 'user2', 'password': 'pass2'}), content_type='application/json')
+        client.post('/session/login', data=json.dumps({'name': 'user2', 'password': hash_password('pass2')}), content_type='application/json')
         client.post('/reservation/cancel', data=json.dumps({'resource_id': resource1_id}), content_type='application/json')
 
         # Get updated reservations for resource1
@@ -336,7 +341,7 @@ def test_endpoint_reservation_lifecycle():
         operation += 1
         print(f"\n{operation}. User1 releases reservation on resource1")
 
-        client.post('/session/login', data=json.dumps({'name': 'user1', 'password': 'pass1'}), content_type='application/json')
+        client.post('/session/login', data=json.dumps({'name': 'user1', 'password': hash_password('pass1')}), content_type='application/json')
         client.post('/reservation/release', data=json.dumps({'resource_id': resource1_id}), content_type='application/json')
 
         # Get updated reservations for resource1
@@ -375,7 +380,7 @@ def test_endpoint_reservation_lifecycle():
         operation += 1
         print(f"\n{operation}. User1 releases reservation on resource2")
 
-        client.post('/session/login', data=json.dumps({'name': 'user1', 'password': 'pass1'}), content_type='application/json')
+        client.post('/session/login', data=json.dumps({'name': 'user1', 'password': hash_password('pass1')}), content_type='application/json')
         client.post('/reservation/release', data=json.dumps({'resource_id': resource2_id}), content_type='application/json')
 
         # Get updated reservations for resource1
@@ -434,7 +439,7 @@ def test_session_status():
         operation += 1
         print(f"\n{operation}. Admin login and status check")
         login_response = client.post('/session/login',
-                                   data=json.dumps({'name': 'admin', 'password': 'admin'}),
+                                   data=json.dumps({'name': 'admin', 'password': hash_password('admin')}),
                                    content_type='application/json')
         assert login_response.status_code == 200
 
@@ -450,12 +455,12 @@ def test_session_status():
         operation += 1
         print(f"\n{operation}. Create regular user and test status")
         client.post('/admin/user/add',
-                   data=json.dumps({'name': 'testuser', 'email': 'test@example.com', 'password': 'pass123'}),
+                   data=json.dumps({'name': 'testuser', 'email': 'test@example.com', 'password': hash_password('pass123')}),
                    content_type='application/json')
         client.post('/session/logout')
 
         client.post('/session/login',
-                   data=json.dumps({'name': 'testuser', 'password': 'pass123'}),
+                   data=json.dumps({'name': 'testuser', 'password': hash_password('pass123')}),
                    content_type='application/json')
 
         status_response = client.get('/session/status')
@@ -486,8 +491,8 @@ def test_admin_user_modify():
     with app.test_client() as client:
         operation += 1
         print(f"\n{operation}. Admin login and create test user")
-        client.post('/session/login', data=json.dumps({'name': 'admin', 'password': 'admin'}), content_type='application/json')
-        resp = client.post('/admin/user/add', data=json.dumps({'name': 'testuser', 'email': 'test@example.com', 'password': 'pass123'}), content_type='application/json')
+        client.post('/session/login', data=json.dumps({'name': 'admin', 'password': hash_password('admin')}), content_type='application/json')
+        resp = client.post('/admin/user/add', data=json.dumps({'name': 'testuser', 'email': 'test@example.com', 'password': hash_password('pass123')}), content_type='application/json')
         user_id = json.loads(resp.data)['user_id']
 
         operation += 1
@@ -499,24 +504,24 @@ def test_admin_user_modify():
 
         operation += 1
         print(f"\n{operation}. Admin modifies user password")
-        response = client.post('/admin/user/modify', data=json.dumps({'user_id': user_id, 'password': 'newpass456'}), content_type='application/json')
+        response = client.post('/admin/user/modify', data=json.dumps({'user_id': user_id, 'password': hash_password('newpass456')}), content_type='application/json')
         assert response.status_code == 200
 
         operation += 1
         print(f"\n{operation}. User modifies own data")
         client.post('/session/logout')
-        client.post('/session/login', data=json.dumps({'name': 'testuser', 'password': 'newpass456'}), content_type='application/json')
+        client.post('/session/login', data=json.dumps({'name': 'testuser', 'password': hash_password('newpass456')}), content_type='application/json')
         response = client.post('/admin/user/modify', data=json.dumps({'user_id': user_id, 'email': 'selfmodified@example.com'}), content_type='application/json')
         assert response.status_code == 200
 
         operation += 1
         print(f"\n{operation}. User cannot modify other user")
         client.post('/session/logout')
-        client.post('/session/login', data=json.dumps({'name': 'admin', 'password': 'admin'}), content_type='application/json')
-        resp2 = client.post('/admin/user/add', data=json.dumps({'name': 'user2', 'email': 'user2@example.com', 'password': 'pass2'}), content_type='application/json')
+        client.post('/session/login', data=json.dumps({'name': 'admin', 'password': hash_password('admin')}), content_type='application/json')
+        resp2 = client.post('/admin/user/add', data=json.dumps({'name': 'user2', 'email': 'user2@example.com', 'password': hash_password('pass2')}), content_type='application/json')
         user2_id = json.loads(resp2.data)['user_id']
         client.post('/session/logout')
-        client.post('/session/login', data=json.dumps({'name': 'testuser', 'password': 'newpass456'}), content_type='application/json')
+        client.post('/session/login', data=json.dumps({'name': 'testuser', 'password': hash_password('newpass456')}), content_type='application/json')
         response = client.post('/admin/user/modify', data=json.dumps({'user_id': user2_id, 'email': 'hacked@example.com'}), content_type='application/json')
         assert response.status_code == 403
 

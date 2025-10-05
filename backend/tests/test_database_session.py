@@ -4,6 +4,7 @@ import os
 import shutil
 import logging
 import time
+import hashlib
 from pathlib import Path
 
 # Add parent directory to Python path so we can import our backend modules
@@ -23,6 +24,10 @@ HOME = str(Path.home())
 TEST_DIR_NAME = '.reservia_test_session'  # Separate test directory
 TEST_APP_NAME = 'reservia_test_session'   # Test app name
 TEST_DB_NAME = 'test_session.db'          # Test database file
+
+def hash_password(password):
+    """Hash password using SHA-256 (same as client-side)"""
+    return hashlib.sha256(password.encode()).hexdigest()
 
 def cleanup_test_databases():
     """Clean up test database files and reset singleton"""
@@ -81,8 +86,8 @@ def test_db_session_login_logout():
 
         print("\nTesting successful admin login...")
         print("  Attempting login with admin credentials...")
-        user = db.login("admin", "admin")
-        assert user is not None                # Login should return User object
+        success, user, error_code, error_msg = db.login("admin", hash_password("admin"))
+        assert success and user is not None   # Login should succeed and return User object
         assert user.name == "admin"            # Verify user properties
         assert user.email == "admin@admin.se"
 
@@ -95,8 +100,8 @@ def test_db_session_login_logout():
 
         print("\nTesting logout functionality...")
         print("  Attempting to logout...")
-        logout_result = db.logout()
-        assert logout_result is True           # Logout should succeed
+        success, data, error_code, error_msg = db.logout()
+        assert success is True                 # Logout should succeed
 
         print("  Verifying session state after logout...")
         assert not db.is_logged_in()           # Should be False again
@@ -105,13 +110,13 @@ def test_db_session_login_logout():
     print("\nTesting logout when not logged in...")
     with app.test_request_context():
         print("  Attempting logout with no active session...")
-        logout_result = db.logout()
-        assert logout_result is False          # Should return False (nothing to logout)
+        success, data, error_code, error_msg = db.logout()
+        assert success is False                # Should return False (nothing to logout)
 
         print("\nTesting failed login...")
         print("  Attempting login with wrong password...")
-        user = db.login("admin", "wrongpassword")
-        assert user is None                    # Should return None for failed login
+        success, user, error_code, error_msg = db.login("admin", hash_password("wrongpassword"))
+        assert not success and user is None   # Should fail and return None for failed login
         assert not db.is_logged_in()           # Should remain not logged in
 
     print(f"{GREEN}Database session login/logout tests passed!{RESET}")

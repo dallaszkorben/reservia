@@ -3,6 +3,7 @@ import os
 import shutil
 import logging
 import time
+import hashlib
 from pathlib import Path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
@@ -20,6 +21,10 @@ HOME = str(Path.home())
 TEST_DIR_NAME = '.reservia_test_request'
 TEST_APP_NAME = 'reservia_test_request'
 TEST_DB_NAME = 'test_request.db'
+
+def hash_password(password):
+    """Hash password using SHA-256 (same as client-side)"""
+    return hashlib.sha256(password.encode()).hexdigest()
 
 def cleanup_test_databases():
     """Clean up test database files and reset singleton"""
@@ -59,11 +64,11 @@ def test_db_request_reservation_failure():
         # Setup test data
         print("\nSetting up test data...")
         print("  Logging in as admin...")
-        success, admin_user, _, _ = db.login("admin", "admin")
+        success, admin_user, _, _ = db.login("admin", hash_password("admin"))
         assert success and admin_user is not None
 
         print("  Creating test user...")
-        success, test_user, _, _ = db.create_user("testuser", "test@example.com", "testpass123")
+        success, test_user, _, _ = db.create_user("testuser", "test@example.com", hash_password("testpass123"))
         assert success and test_user is not None
 
         print("  Creating test resource...")
@@ -73,7 +78,7 @@ def test_db_request_reservation_failure():
 
         print("  Logging out admin and logging in as test user...")
         db.logout()
-        success, logged_in_user, _, _ = db.login("testuser", "testpass123")
+        success, logged_in_user, _, _ = db.login("testuser", hash_password("testpass123"))
         assert success and logged_in_user is not None
 
         print("  Emptying reservation_lifecycle table...")
@@ -118,11 +123,11 @@ def test_db_cancel_reservation_empty_table():
         # Setup test data
         print("\nSetting up test data...")
         print("  Logging in as admin...")
-        success, admin_user, _, _ = db.login("admin", "admin")
+        success, admin_user, _, _ = db.login("admin", hash_password("admin"))
         assert success and admin_user is not None
 
         print("  Creating test user...")
-        success, test_user, _, _ = db.create_user("testuser", "test@example.com", "testpass123")
+        success, test_user, _, _ = db.create_user("testuser", "test@example.com", hash_password("testpass123"))
         assert success and test_user is not None
 
         print("  Creating test resource...")
@@ -132,7 +137,7 @@ def test_db_cancel_reservation_empty_table():
 
         print("  Logging out admin and logging in as test user...")
         db.logout()
-        success, logged_in_user, _, _ = db.login("testuser", "testpass123")
+        success, logged_in_user, _, _ = db.login("testuser", hash_password("testpass123"))
         assert success and logged_in_user is not None
 
         print("  Emptying reservation_lifecycle table...")
@@ -167,11 +172,11 @@ def test_db_release_reservation_empty_table():
         # Setup test data
         print("\nSetting up test data...")
         print("  Logging in as admin...")
-        success, admin_user, _, _ = db.login("admin", "admin")
+        success, admin_user, _, _ = db.login("admin", hash_password("admin"))
         assert success and admin_user is not None
 
         print("  Creating test user...")
-        success, test_user, _, _ = db.create_user("testuser", "test@example.com", "testpass123")
+        success, test_user, _, _ = db.create_user("testuser", "test@example.com", hash_password("testpass123"))
         assert success and test_user is not None
 
         print("  Creating test resource...")
@@ -181,7 +186,7 @@ def test_db_release_reservation_empty_table():
 
         print("  Logging out admin and logging in as test user...")
         db.logout()
-        success, logged_in_user, _, _ = db.login("testuser", "testpass123")
+        success, logged_in_user, _, _ = db.login("testuser", hash_password("testpass123"))
         assert success and logged_in_user is not None
 
         print("  Emptying reservation_lifecycle table...")
@@ -218,14 +223,14 @@ def test_db_reservation_lifecycle_workflow_1():
         db.session.query(ReservationLifecycle).delete()
         db.session.commit()
 
-        _, admin_user, _, _ = db.login("admin", "admin")
+        _, admin_user, _, _ = db.login("admin", hash_password("admin"))
         _, resource1, _, _ = db.create_resource("Resource1", "Test resource 1")
         resource1_id = resource1.id
 
-        _, user1, _, _ = db.create_user("user1", "user1@example.com", "pass1")
-        _, user2, _, _ = db.create_user("user2", "user2@example.com", "pass2")
-        _, user3, _, _ = db.create_user("user3", "user3@example.com", "pass3")
-        _, user4, _, _ = db.create_user("user4", "user4@example.com", "pass4")
+        _, user1, _, _ = db.create_user("user1", "user1@example.com", hash_password("pass1"))
+        _, user2, _, _ = db.create_user("user2", "user2@example.com", hash_password("pass2"))
+        _, user3, _, _ = db.create_user("user3", "user3@example.com", hash_password("pass3"))
+        _, user4, _, _ = db.create_user("user4", "user4@example.com", hash_password("pass4"))
 
         operation += 1
 
@@ -233,7 +238,7 @@ def test_db_reservation_lifecycle_workflow_1():
         # 1. User1 requests reservation
         # -----------------------------
         db.logout()
-        _, _, _, _ = db.login("user1", "pass1")
+        _, _, _, _ = db.login("user1", hash_password("pass1"))
         _, result, _, _ = db.request_reservation(resource1_id)
 
         records = db.session.query(ReservationLifecycle).order_by(ReservationLifecycle.request_date).all()
@@ -255,7 +260,7 @@ def test_db_reservation_lifecycle_workflow_1():
         # 2. User4 requests reservation
         # -----------------------------
         db.logout()
-        _, _, _, _ = db.login("user4", "pass4")
+        _, _, _, _ = db.login("user4", hash_password("pass4"))
         _, result, _, _ = db.request_reservation(resource1_id)
 
         records = db.session.query(ReservationLifecycle).order_by(ReservationLifecycle.request_date).all()
@@ -282,7 +287,7 @@ def test_db_reservation_lifecycle_workflow_1():
         # 3. User2 requests reservation
         # -----------------------------
         db.logout()
-        _, _, _, _ = db.login("user2", "pass2")
+        _, _, _, _ = db.login("user2", hash_password("pass2"))
         _, result, _, _ = db.request_reservation(resource1_id)
 
         records = db.session.query(ReservationLifecycle).order_by(ReservationLifecycle.request_date).all()
@@ -344,7 +349,7 @@ def test_db_reservation_lifecycle_workflow_1():
         # 5. User3 requests reservation
         # -----------------------------
         db.logout()
-        _, _, _, _ = db.login("user3", "pass3")
+        _, _, _, _ = db.login("user3", hash_password("pass3"))
         _, result, _, _ = db.request_reservation(resource1_id)
 
         records = db.session.query(ReservationLifecycle).order_by(ReservationLifecycle.request_date).all()
@@ -381,7 +386,7 @@ def test_db_reservation_lifecycle_workflow_1():
         # 6. User1 releases reservation
         # -----------------------------
         db.logout()
-        _, _, _, _ = db.login("user1", "pass1")
+        _, _, _, _ = db.login("user1", hash_password("pass1"))
         _, _, _, _ = db.release_reservation(resource1_id)
 
         records = db.session.query(ReservationLifecycle).order_by(ReservationLifecycle.request_date).all()
@@ -435,14 +440,14 @@ def test_db_reservation_lifecycle_workflow_2():
         db.session.query(ReservationLifecycle).delete()
         db.session.commit()
 
-        _, admin_user, _, _ = db.login("admin", "admin")
+        _, admin_user, _, _ = db.login("admin", hash_password("admin"))
         _, resource1, _, _ = db.create_resource("Resource1", "Test resource 1")
         resource1_id = resource1.id
 
-        _, user1, _, _ = db.create_user("user1", "user1@example.com", "pass1")
-        _, user2, _, _ = db.create_user("user2", "user2@example.com", "pass2")
-        _, user3, _, _ = db.create_user("user3", "user3@example.com", "pass3")
-        _, user4, _, _ = db.create_user("user4", "user4@example.com", "pass4")
+        _, user1, _, _ = db.create_user("user1", "user1@example.com", hash_password("pass1"))
+        _, user2, _, _ = db.create_user("user2", "user2@example.com", hash_password("pass2"))
+        _, user3, _, _ = db.create_user("user3", "user3@example.com", hash_password("pass3"))
+        _, user4, _, _ = db.create_user("user4", "user4@example.com", hash_password("pass4"))
 
         operation += 1
 
@@ -450,7 +455,7 @@ def test_db_reservation_lifecycle_workflow_2():
         # 1. User1 requests reservation
         # -----------------------------
         db.logout()
-        _, _, _, _ = db.login("user1", "pass1")
+        _, _, _, _ = db.login("user1", hash_password("pass1"))
         _, result1, _, _ = db.request_reservation(resource1_id)
 
         records = db.session.query(ReservationLifecycle).order_by(ReservationLifecycle.request_date).all()
@@ -472,7 +477,7 @@ def test_db_reservation_lifecycle_workflow_2():
         # 2. User2 requests reservation
         # -----------------------------
         db.logout()
-        _, _, _, _ = db.login("user2", "pass2")
+        _, _, _, _ = db.login("user2", hash_password("pass2"))
         _, result2, _, _ = db.request_reservation(resource1_id)
 
         records = db.session.query(ReservationLifecycle).order_by(ReservationLifecycle.request_date).all()
@@ -496,7 +501,7 @@ def test_db_reservation_lifecycle_workflow_2():
         # 3. User3 requests reservation
         # -----------------------------
         db.logout()
-        _, _, _, _ = db.login("user3", "pass3")
+        _, _, _, _ = db.login("user3", hash_password("pass3"))
         _, result3, _, _ = db.request_reservation(resource1_id)
 
         records = db.session.query(ReservationLifecycle).order_by(ReservationLifecycle.request_date).all()
@@ -528,7 +533,7 @@ def test_db_reservation_lifecycle_workflow_2():
         # 4. User2 cancels reservation
         # ----------------------------
         db.logout()
-        _, _, _, _ = db.login("user2", "pass2")
+        _, _, _, _ = db.login("user2", hash_password("pass2"))
         _, _, _, _ = db.cancel_reservation(resource1_id)
 
         records = db.session.query(ReservationLifecycle).order_by(ReservationLifecycle.request_date).all()
@@ -560,7 +565,7 @@ def test_db_reservation_lifecycle_workflow_2():
         # 5. User2 requests reservation
         # -----------------------------
         db.logout()
-        _, _, _, _ = db.login("user2", "pass2")
+        _, _, _, _ = db.login("user2", hash_password("pass2"))
         _, result4, _, _ = db.request_reservation(resource1_id)
 
         records = db.session.query(ReservationLifecycle).order_by(ReservationLifecycle.request_date).all()
@@ -609,14 +614,14 @@ def test_db_reservation_lifecycle_workflow_3():
         db.session.query(ReservationLifecycle).delete()
         db.session.commit()
 
-        _, admin_user, _, _ = db.login("admin", "admin")
+        _, admin_user, _, _ = db.login("admin", hash_password("admin"))
         _, resource1, _, _ = db.create_resource("Resource1", "Test resource 1")
         resource1_id = resource1.id
 
-        _, user1, _, _ = db.create_user("user1", "user1@example.com", "pass1")
-        _, user2, _, _ = db.create_user("user2", "user2@example.com", "pass2")
-        _, user3, _, _ = db.create_user("user3", "user3@example.com", "pass3")
-        _, user4, _, _ = db.create_user("user4", "user4@example.com", "pass4")
+        _, user1, _, _ = db.create_user("user1", "user1@example.com", hash_password("pass1"))
+        _, user2, _, _ = db.create_user("user2", "user2@example.com", hash_password("pass2"))
+        _, user3, _, _ = db.create_user("user3", "user3@example.com", hash_password("pass3"))
+        _, user4, _, _ = db.create_user("user4", "user4@example.com", hash_password("pass4"))
 
         operation += 1
 
@@ -624,19 +629,19 @@ def test_db_reservation_lifecycle_workflow_3():
         # 1. User1/2/3/4 requests reservation
         # -----------------------------------
         db.logout()
-        _, _, _, _ = db.login("user1", "pass1")
+        _, _, _, _ = db.login("user1", hash_password("pass1"))
         _, result1, _, _ = db.request_reservation(resource1_id)
 
         db.logout()
-        _, _, _, _ = db.login("user2", "pass2")
+        _, _, _, _ = db.login("user2", hash_password("pass2"))
         _, result1, _, _ = db.request_reservation(resource1_id)
 
         db.logout()
-        _, _, _, _ = db.login("user3", "pass3")
+        _, _, _, _ = db.login("user3", hash_password("pass3"))
         _, result1, _, _ = db.request_reservation(resource1_id)
 
         db.logout()
-        _, _, _, _ = db.login("user4", "pass4")
+        _, _, _, _ = db.login("user4", hash_password("pass4"))
         _, result1, _, _ = db.request_reservation(resource1_id)
 
         active_reservations = db.get_active_reservations(resource1_id)
@@ -672,11 +677,11 @@ def test_db_reservation_lifecycle_workflow_3():
         # 2. Release User1/2 release reservation
         # --------------------------------------
         db.logout()
-        _, _, _, _ = db.login("user1", "pass1")
+        _, _, _, _ = db.login("user1", hash_password("pass1"))
         _, result2, _, _ = db.release_reservation(resource1_id)
 
         db.logout()
-        _, _, _, _ = db.login("user2", "pass2")
+        _, _, _, _ = db.login("user2", hash_password("pass2"))
         _, result2, _, _ = db.release_reservation(resource1_id)
 
         active_reservations = db.get_active_reservations(resource1_id)

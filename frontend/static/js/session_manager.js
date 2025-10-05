@@ -26,6 +26,7 @@ window.SessionManager = {
             user_email: response.user_email || null,
             is_admin: response.is_admin || false
         };
+        this.updateAdminWarning();
     },
 
     /**
@@ -39,6 +40,7 @@ window.SessionManager = {
             user_email: null,
             is_admin: false
         };
+        this.updateAdminWarning();
     },
 
     /**
@@ -62,5 +64,19 @@ window.SessionManager = {
 
     isAdmin() {
         return this.data.is_admin;
+    },
+
+    /**
+     * Updates admin warning visual indicator
+     */
+    updateAdminWarning() {
+        const header = document.getElementById('header');
+        if (header) {
+            if (this.data.logged_in && this.data.is_admin) {
+                header.classList.add('admin-warning');
+            } else {
+                header.classList.remove('admin-warning');
+            }
+        }
     }
 };

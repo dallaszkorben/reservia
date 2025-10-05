@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='js/jquery-ui/jquery-ui.min.css') }}">
     <script src="{{ url_for('static', filename='js/jquery-ui/jquery-ui.min.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/crypto_utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/session_manager.js') }}"></script>
     <script src="{{ url_for('static', filename='js/reservia.js') }}"></script>
     <script src="{{ url_for('static', filename='js/resource_manager.js') }}"></script>
@@ -18,7 +19,7 @@
         <h1>Reservia</h1>
     </div>
 
-    <div id="menu-container" style="background-color: white; padding: 15px; text-align: left; border-radius: 10px;">
+    <div id="header" style="background-color: white; padding: 15px; text-align: left; border-radius: 10px;">
         <button id="login-btn" style="margin-right:10px;">Login</button>
         <button id="logout-btn" style="margin-right:10px;">Logout</button>
         <button id="modify-btn" style="margin-right:10px; display:none;">Modify</button>
@@ -137,7 +138,7 @@
             });
         }
 
-        function login() {
+        async function login() {
             const username = $('#username').val();
             const password = $('#password').val();
 
@@ -146,20 +147,27 @@
                 return;
             }
 
-            $.ajax({
-                url: '/session/login',
-                method: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({name: username, password: password}),
-                success: function(response) {
-                    hideLoginForm();
-                    checkSession(); // Refresh session data
-                    clearError();
-                },
-                error: function(xhr) {
-                    showError('Login failed');
-                }
-            });
+            try {
+                // Hash password on client side before sending
+                const hashedPassword = await hashPassword(password);
+                
+                $.ajax({
+                    url: '/session/login',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({name: username, password: hashedPassword}),
+                    success: function(response) {
+                        hideLoginForm();
+                        checkSession(); // Refresh session data
+                        clearError();
+                    },
+                    error: function(xhr) {
+                        showError('Login failed');
+                    }
+                });
+            } catch (error) {
+                showError('Password hashing failed');
+            }
         }
 
         function logout() {
@@ -183,6 +191,8 @@
             $('#logout-btn').show();
             $('#modify-btn').show();
 
+            // Admin warning is handled by SessionManager.setSessionData()
+
             const tooltipContent = `<b>${response.user_name}</b><br>user_id: ${response.user_id}<br>user_email: ${response.user_email}<br>is_admin: ${response.is_admin}`;
             $('#logout-btn').attr('title', tooltipContent).tooltip({
                 content: tooltipContent,
@@ -201,6 +211,8 @@
             $('#login-btn').show();
             $('#logout-btn').hide();
             $('#modify-btn').hide();
+
+            // Admin warning reset is handled by SessionManager.clearSessionData()
 
             // Only destroy tooltip if it was initialized
             if ($('#logout-btn').data('ui-tooltip')) {
@@ -250,7 +262,7 @@
             clearModifyMessages();
         }
 
-        function modifyUser() {
+        async function modifyUser() {
             const email = $('#modify-email').val();
             const password = $('#modify-password').val();
 
@@ -265,32 +277,39 @@
                 return;
             }
 
-            const data = { user_id: currentUserId };
-            if (email) data.email = email;
-            if (password) data.password = password;
-
-            $.ajax({
-                url: '/admin/user/modify',
-                method: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify(data),
-                success: function(response) {
-                    showModifySuccess('User data modified successfully');
-                    // Update session data by checking session again
-                    setTimeout(() => {
-                        checkSession();
-                        hideModifyForm();
-                    }, 1500);
-                },
-                error: function(xhr) {
-                    try {
-                        const errorResponse = JSON.parse(xhr.responseText);
-                        showModifyError(errorResponse.error || 'Modification failed');
-                    } catch (e) {
-                        showModifyError('Modification failed');
-                    }
+            try {
+                const data = { user_id: currentUserId };
+                if (email) data.email = email;
+                if (password) {
+                    // Hash password on client side before sending
+                    data.password = await hashPassword(password);
                 }
-            });
+
+                $.ajax({
+                    url: '/admin/user/modify',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data),
+                    success: function(response) {
+                        showModifySuccess('User data modified successfully');
+                        // Update session data by checking session again
+                        setTimeout(() => {
+                            checkSession();
+                            hideModifyForm();
+                        }, 1500);
+                    },
+                    error: function(xhr) {
+                        try {
+                            const errorResponse = JSON.parse(xhr.responseText);
+                            showModifyError(errorResponse.error || 'Modification failed');
+                        } catch (e) {
+                            showModifyError('Modification failed');
+                        }
+                    }
+                });
+            } catch (error) {
+                showModifyError('Password hashing failed');
+            }
         }
 
         function getCurrentUserIdFromTooltip() {

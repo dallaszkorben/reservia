@@ -3,6 +3,7 @@ import os
 import shutil
 import logging
 import time
+import hashlib
 from pathlib import Path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
@@ -19,6 +20,10 @@ HOME = str(Path.home())
 TEST_DIR_NAME = '.reservia_test'
 TEST_APP_NAME = 'reservia_test'
 TEST_DB_NAME = 'test_reservia.db'
+
+def hash_password(password):
+    """Hash password using SHA-256 (same as client-side)"""
+    return hashlib.sha256(password.encode()).hexdigest()
 
 def cleanup_test_databases():
     """Clean up test database files and reset singleton"""
@@ -73,11 +78,11 @@ def test_db_user_add():
 
         print("\nTesting admin login and user creation...")
         print("  Logging in as admin...")
-        _, admin_user, _, _ = db1.login("admin", "admin")
+        _, admin_user, _, _ = db1.login("admin", hash_password("admin"))
         assert admin_user is not None
 
         print("  Creating user as admin...")
-        _, user, _, _ = db1.create_user("John Doe", "john@example.com", "password123")
+        _, user, _, _ = db1.create_user("John Doe", "john@example.com", hash_password("password123"))
         assert user.name == "John Doe"
         assert user.email == "john@example.com"
         assert user.id is not None
@@ -117,7 +122,7 @@ def test_db_user_update():
 
         print("\nTesting user update with admin login...")
         print("  Logging in as admin...")
-        _, admin_user, _, _ = db.login("admin", "admin")
+        _, admin_user, _, _ = db.login("admin", hash_password("admin"))
         assert admin_user is not None
 
         print("  Updating email only...")
@@ -126,11 +131,11 @@ def test_db_user_update():
         assert updated_user.name == "admin"
 
         print("  Updating password only...")
-        updated_user = db.update_user(password="newpass456")
+        updated_user = db.update_user(password=hash_password("newpass456"))
         assert updated_user is not None
 
         print("  Updating both email and password...")
-        updated_user = db.update_user(email="admin.final@admin.se", password="finalpass789")
+        updated_user = db.update_user(email="admin.final@admin.se", password=hash_password("finalpass789"))
         assert updated_user.email == "admin.final@admin.se"
 
         print("  Verifying session was updated...")
@@ -167,7 +172,7 @@ def test_db_resource_add():
 
         print("\nTesting resource creation with admin login...")
         print("  Logging in as admin...")
-        _, admin_user, _, _ = db.login("admin", "admin")
+        _, admin_user, _, _ = db.login("admin", hash_password("admin"))
         assert admin_user is not None
 
         print("  Creating resource with comment...")
@@ -218,7 +223,7 @@ def test_db_resource_get_all():
 
         operation += 1
         print(f"\n{operation}. Admin login test")
-        _, admin_user, _, _ = db.login("admin", "admin")
+        _, admin_user, _, _ = db.login("admin", hash_password("admin"))
         assert admin_user is not None
 
         operation += 1
@@ -260,26 +265,26 @@ def test_db_login():
 
         print("\nTesting login with default admin user...")
         print("  Attempting admin login...")
-        _, admin_user, _, _ = db.login("admin", "admin")
+        _, admin_user, _, _ = db.login("admin", hash_password("admin"))
         assert admin_user is not None
         assert admin_user.name == "admin"
         assert admin_user.email == "admin@admin.se"
 
         print("\nTesting login with wrong password...")
         print("  Attempting login with incorrect password...")
-        success, result, error_code, _ = db.login("admin", "wrongpassword")
+        success, result, error_code, _ = db.login("admin", hash_password("wrongpassword"))
         assert not success and result is None and error_code == "INVALID_PASSWORD"
 
         print("\nTesting login with non-existent user...")
         print("  Attempting login with non-existent user...")
-        success, result, error_code, _ = db.login("nonexistent", "password")
+        success, result, error_code, _ = db.login("nonexistent", hash_password("password"))
         assert not success and result is None and error_code == "USER_NOT_FOUND"
 
         print("\nTesting login with new user...")
         print("  Creating new test user...")
-        _, _, _, _ = db.create_user("testuser", "test@example.com", "testpass123")
+        _, _, _, _ = db.create_user("testuser", "test@example.com", hash_password("testpass123"))
         print("  Attempting login with new user...")
-        _, test_user, _, _ = db.login("testuser", "testpass123")
+        _, test_user, _, _ = db.login("testuser", hash_password("testpass123"))
         assert test_user is not None
         assert test_user.name == "testuser"
         assert test_user.email == "test@example.com"

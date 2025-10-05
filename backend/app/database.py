@@ -92,6 +92,7 @@ class Database:
                 self.session.add(admin_user)
                 self.session.flush()
 
+                # Pre-hashed password for "admin" (client-side hashed)
                 encoded_password = hashlib.sha256("admin".encode()).hexdigest()
                 password_entry = Password(user_id=admin_user.id, password=encoded_password)
                 self.session.add(password_entry)
@@ -107,7 +108,7 @@ class Database:
 
         Args:
             name (str): Username for authentication. Required.
-            password (str): User password in plain text. Required.
+            password (str): User password already hashed on client-side. Required.
 
         Returns:
             tuple: (success, data, error_code, error_message)
@@ -117,7 +118,7 @@ class Database:
                 - error_message (str|None): Human-readable error message on failure, None on success
 
         Example:
-            success, user, error_code, error_msg = db.login("admin", "password")
+            success, user, error_code, error_msg = db.login("admin", "hashed_password")
             if success:
                 print(f"Logged in as {user.name}")
             else:
@@ -134,9 +135,9 @@ class Database:
                 logging.error(f"{LOG_PREFIX_DATABASE}It should not happen. There was NO password found for the given name '{name} in the database'")
                 return False, None, "PASSWORD_NOT_FOUND", "Password entry not found"
 
-            encoded_password = hashlib.sha256(password.encode()).hexdigest()
-            logging.debug(f"{LOG_PREFIX_DATABASE}Login attempt - stored: {password_entry.password[:10]}..., provided: {encoded_password[:10]}...")
-            if password_entry.password != encoded_password:
+            # Password is already hashed on client-side, compare directly
+            logging.debug(f"{LOG_PREFIX_DATABASE}Login attempt - stored: {password_entry.password[:10]}..., provided: {password[:10]}...")
+            if password_entry.password != password:
                 logging.error(f"{LOG_PREFIX_DATABASE}The given password for user '{name}' is incorrect")
                 return False, None, "INVALID_PASSWORD", "Invalid credentials"
 
@@ -181,7 +182,7 @@ class Database:
         Args:
             name (str): Username for the new account. Required.
             email (str): Email address for the new account. Required.
-            password (str): Password in plain text (will be hashed). Required.
+            password (str): Password already hashed on client-side. Required.
 
         Returns:
             tuple: (success, data, error_code, error_message)
@@ -191,7 +192,7 @@ class Database:
                 - error_message (str|None): Human-readable error message on failure, None on success
 
         Example:
-            success, user, error_code, error_msg = db.create_user("john", "john@example.com", "pass123")
+            success, user, error_code, error_msg = db.create_user("john", "john@example.com", "hashed_pass")
             if success:
                 print(f"Created user {user.name} with ID {user.id}")
             else:
@@ -209,8 +210,8 @@ class Database:
                 self.session.add(user)
                 self.session.flush()
 
-                encoded_password = hashlib.sha256(password.encode()).hexdigest()
-                password_entry = Password(user_id=user.id, password=encoded_password)
+                # Password is already hashed on client-side
+                password_entry = Password(user_id=user.id, password=password)
                 self.session.add(password_entry)
                 self.session.commit()
 
@@ -269,10 +270,10 @@ class Database:
                         session['logged_in_user']['user_email'] = email
 
                 if password is not None:
-                    encoded_password = hashlib.sha256(password.encode()).hexdigest()
+                    # Password is already hashed on client-side
                     password_entry = self.session.query(Password).filter(Password.user_id == user_id).first()
                     if password_entry:
-                        password_entry.password = encoded_password
+                        password_entry.password = password
 
                 self.session.commit()
                 logging.info(f"{LOG_PREFIX_DATABASE}User modified: {user.name} (ID: {user_id})")
@@ -306,10 +307,10 @@ class Database:
                 session['logged_in_user']['user_email'] = email
 
             if password is not None:
-                encoded_password = hashlib.sha256(password.encode()).hexdigest()
+                # Password is already hashed on client-side
                 password_entry = self.session.query(Password).filter(Password.user_id == user_id).first()
                 if password_entry:
-                    password_entry.password = encoded_password
+                    password_entry.password = password
 
             self.session.commit()
             logging.info(f"{LOG_PREFIX_DATABASE}User updated: {user.name} (ID: {user_id})")
@@ -369,7 +370,7 @@ class Database:
 
     def get_resources(self):
         """
-        Retrieve all resources in the system (admin only).
+        Retrieve all resources in the system (requires login).
 
         Returns:
             tuple: (success, data, error_code, error_message)
@@ -385,16 +386,10 @@ class Database:
             else:
                 print(f"Failed to retrieve resources: {error_msg}")
         """
-        # Only admin can retrieve all resources
-        current_user = self.get_current_user()
-#        if not current_user or not current_user.get('is_admin', False):
-#            logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized resource retrieval attempt")
-#            return False, None, "UNAUTHORIZED", "Admin access required"
-
         current_user = self.get_current_user()
         if not current_user:
-            logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized reservation cancellation - user not logged in")
-            return False, None, "AUTH_REQUIRED", "User authentication required"
+            logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized resource retrieval - user not logged in")
+            return False, None, "UNAUTHORIZED", "User authentication required"
 
         with self.lock:
             resources = self.session.query(Resource).all()

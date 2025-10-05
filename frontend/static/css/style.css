@@ -20,6 +20,13 @@ body {
     border: 1px solid rgba(255,255,255,0.3); /* Subtle white border */
 }
 
+/* ===== ADMIN WARNING ===== */
+/* Red gradient background when admin user is logged in */
+#header.admin-warning {
+    background: linear-gradient(135deg, rgba(255,59,48,0.9), rgba(255,149,0,0.8)) !important; /* Red to orange gradient */
+    box-shadow: 0 10px 40px rgba(255,59,48,0.3) !important; /* Red-tinted shadow */
+}
+
 /* Main title "Reservia" */
 h1 {
     color: #007AFF; /* Apple blue */
