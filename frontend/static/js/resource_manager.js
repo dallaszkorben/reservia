@@ -36,9 +36,9 @@ function loadUsersForResource(resourceCard) {
 function usersEqual(users1, users2) {
     // Quick check: different lengths means different lists
     if (users1.length !== users2.length) return false;
-    
+
     // Check if every user in list1 has a matching user in list2 (by ID and status)
-    return users1.every(u1 => 
+    return users1.every(u1 =>
         users2.some(u2 => u1.id === u2.user_id && u1.status === u2.status)
     );
 }
@@ -59,7 +59,7 @@ function refreshResourcesFromServer() {
             response.resources.forEach(resource => {
                 // Step 3: Check if this resource already exists in our ResourcePool
                 let resourceCard = pool.resources.find(r => r.id === resource.id);
-                
+
                 if (!resourceCard) {
                     // Case 1: New resource - add it to the pool and load its users
                     console.log(`Adding new resource: ${resource.name} (${resource.id})`);
@@ -79,7 +79,7 @@ function refreshResourcesFromServer() {
                                 resourceCard.users = [];                    // Clear user data
                                 resourceCard.view?.user_list.empty();       // Clear DOM elements
                                 resourceCard.view?.updateBackgroundColor(); // Update color for empty list
-                                
+
                                 // Add updated users from server
                                 reservationResponse.reservations.forEach(reservation => {
                                     resourceCard.addUser(
@@ -90,7 +90,7 @@ function refreshResourcesFromServer() {
                                         reservation.approved_date
                                     );
                                 });
-                                
+
                                 // Update background color after all users are added (or if no users)
                                 resourceCard.view?.updateBackgroundColor();
                             }
@@ -119,17 +119,11 @@ function loadResourcesFromServer() {
 }
 
 /**
- * Gets the current logged-in user ID from the UI session data
+ * Gets the current logged-in user ID from global session data
  * Returns null if no user is logged in
  */
 function getCurrentUserId() {
-    // Extract user ID from the tooltip content that contains session data
-    const tooltipContent = $('#user-name').attr('title');
-    if (!tooltipContent) return null;
-    
-    // Parse user_id from tooltip content like "user_id: 123"
-    const match = tooltipContent.match(/user_id: (\d+)/);
-    return match ? parseInt(match[1]) : null;
+    return SessionManager.getCurrentUserId();
 }
 
 /**
@@ -138,11 +132,11 @@ function getCurrentUserId() {
  */
 function setupResourceEventListeners() {
     const pool = ResourcePool.getInstance();
-    
+
     // Listen for resource selection events (when user clicks on empty area of resource card)
     pool.addEventListener('resource_selected', (data) => {
         console.log(`User clicked on resource: ${data.resource_name} (${data.resource_id})`);
-        
+
         // Step 1: Send POST request to reserve the resource
         $.ajax({
             url: '/reservation/request',
@@ -154,58 +148,59 @@ function setupResourceEventListeners() {
             success: function(response) {
                 // Step 2: Log successful reservation
                 console.log(`Reservation successful for resource ${data.resource_name}:`, response);
-                
+
                 // Step 3: Trigger immediate refresh to show updated state
                 console.log('Triggering immediate refresh after reservation...');
                 refreshResourcesFromServer();
             },
             error: function(xhr, status, error) {
                 // Step 2: Log reservation errors to console
-                console.error(`Reservation failed for resource ${data.resource_name} (${data.resource_id}):`);
-                console.error('Status:', xhr.status);
-                console.error('Error:', error);
-                
-                // Try to parse and log the error response
+                //console.error(`Reservation failed for resource ${data.resource_name} (${data.resource_id}):`);
+                //console.error('Status:', xhr.status);
+                //console.error('Error:', error);
+
+                //// Try to parse and log the error response
                 try {
                     const errorResponse = JSON.parse(xhr.responseText);
-                    console.error('Server response:', errorResponse);
+                    //console.error('Server response:', errorResponse);
+                    console.log('Reservation was not successful:', errorResponse);
                 } catch (e) {
                     console.error('Raw response:', xhr.responseText);
                 }
             }
         });
     });
-    
+
     // Listen for user selection events (when user clicks on a user in the list)
     pool.addEventListener('user_selected', (data) => {
         console.log(`User clicked on user: ${data.user_name} (${data.user_id}) in resource: ${data.resource_name} (${data.resource_id})`);
-        
+
         // Step 1: Get current logged-in user ID
         const currentUserId = getCurrentUserId();
         if (!currentUserId) {
             console.error('No user logged in - cannot perform user operations');
             return;
         }
-        
+
         // Step 2: Check if clicked user matches current logged-in user
         if (data.user_id !== currentUserId) {
             console.log(`Clicked user (${data.user_id}) is not the current user (${currentUserId}) - ignoring click`);
             return;
         }
-        
+
         // Step 3: Find the resource and user to determine the action
         const resource = pool.resources.find(r => r.id === data.resource_id);
         if (!resource) {
             console.error(`Resource ${data.resource_id} not found`);
             return;
         }
-        
+
         const user = resource.users.find(u => u.id === data.user_id);
         if (!user) {
             console.error(`User ${data.user_id} not found in resource ${data.resource_id}`);
             return;
         }
-        
+
         // Step 4: Determine action based on user status
         let endpoint, action;
         if (user.status === 'approved') {
@@ -217,9 +212,9 @@ function setupResourceEventListeners() {
             endpoint = '/reservation/cancel';
             action = 'cancel';
         }
-        
+
         console.log(`Attempting to ${action} reservation for user ${data.user_name} (${data.user_id}) on resource ${data.resource_name} (${data.resource_id})`);
-        
+
         // Step 5: Send the appropriate API request
         $.ajax({
             url: endpoint,
@@ -231,7 +226,7 @@ function setupResourceEventListeners() {
             success: function(response) {
                 // Step 6: Log successful operation
                 console.log(`${action.toUpperCase()} successful for user ${data.user_name} on resource ${data.resource_name}:`, response);
-                
+
                 // Step 7: Trigger immediate refresh to show updated state
                 console.log(`Triggering immediate refresh after ${action}...`);
                 refreshResourcesFromServer();
@@ -241,7 +236,7 @@ function setupResourceEventListeners() {
                 console.error(`${action.toUpperCase()} failed for user ${data.user_name} (${data.user_id}) on resource ${data.resource_name} (${data.resource_id}):`);
                 console.error('Status:', xhr.status);
                 console.error('Error:', error);
-                
+
                 // Try to parse and log the error response
                 try {
                     const errorResponse = JSON.parse(xhr.responseText);
@@ -266,7 +261,7 @@ function startAutoRefresh() {
     if (autoRefreshInterval) {
         clearInterval(autoRefreshInterval);
     }
-    
+
     // Start auto-refresh system: Update resources every 5 seconds
     autoRefreshInterval = setInterval(refreshResourcesFromServer, 5000);
     console.log('Auto-refresh started for logged-in user');
@@ -303,6 +298,6 @@ function clearResourcesOnLogout() {
 function initializeResourceManager() {
     // Set up event listeners for resource and user interactions
     setupResourceEventListeners();
-    
+
     console.log('Resource manager initialized with login-controlled auto-refresh and user click handling');
 }

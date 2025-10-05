@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='js/jquery-ui/jquery-ui.min.css') }}">
     <script src="{{ url_for('static', filename='js/jquery-ui/jquery-ui.min.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/session_manager.js') }}"></script>
     <script src="{{ url_for('static', filename='js/reservia.js') }}"></script>
     <script src="{{ url_for('static', filename='js/resource_manager.js') }}"></script>
     <script src="{{ url_for('static', filename='js/test_frontend.js') }}"></script>
@@ -175,6 +176,9 @@
         }
 
         function showLoggedInUI(response) {
+            // Update global session data
+            SessionManager.setSessionData(response);
+
             $('#login-btn').hide();
             $('#logout-btn').show();
             $('#modify-btn').show();
@@ -191,6 +195,9 @@
         }
 
         function showLoggedOutUI() {
+            // Clear global session data
+            SessionManager.clearSessionData();
+
             $('#login-btn').show();
             $('#logout-btn').hide();
             $('#modify-btn').hide();
@@ -287,17 +294,11 @@
         }
 
         function getCurrentUserIdFromTooltip() {
-            const tooltipContent = $('#logout-btn').attr('title');
-            if (!tooltipContent) return null;
-            const match = tooltipContent.match(/user_id: (\d+)/);
-            return match ? parseInt(match[1]) : null;
+            return SessionManager.getCurrentUserId();
         }
 
         function getCurrentUserNameFromTooltip() {
-            const tooltipContent = $('#logout-btn').attr('title');
-            if (!tooltipContent) return null;
-            const match = tooltipContent.match(/<b>([^<]+)<\/b>/);
-            return match ? match[1] : null;
+            return SessionManager.getCurrentUserName();
         }
 
         function showModifyError(message) {

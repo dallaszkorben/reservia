@@ -256,10 +256,7 @@ class ResourceView {
     }
 
     getCurrentUserId() {
-        const tooltipContent = $('#logout-btn').attr('title');
-        if (!tooltipContent) return null;
-        const match = tooltipContent.match(/user_id: (\d+)/);
-        return match ? parseInt(match[1]) : null;
+        return SessionManager.getCurrentUserId();
     }
 
     destroy() {
