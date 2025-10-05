@@ -1,3 +1,16 @@
+"""
+API Endpoint Test Suite
+
+Comprehensive test suite for the Reservia REST API endpoints, covering:
+- Admin user management (add, modify)
+- Admin resource management (add, modify)
+- Session management and authentication
+- Reservation lifecycle operations
+- Authorization and access control
+
+All tests use isolated test databases and proper cleanup.
+"""
+
 import sys
 import os
 import json
@@ -50,6 +63,10 @@ def cleanup_test_databases():
         shutil.rmtree(test_path)
 
 def test_admin_user_add():
+    """
+    Test /admin/user/add endpoint functionality including successful user creation,
+    duplicate validation, field validation, and authorization checks.
+    """
     print("=== Admin user add endpoint tests started!")
 
     cleanup_test_databases()
@@ -113,10 +130,14 @@ def test_admin_user_add():
         data = json.loads(response.data)
         assert 'error' in data
 
-    print(f"{GREEN}Admin user add tests passed!{RESET}\n")
+    print(f"{GREEN}Admin user add tests passed!{RESET}")
 
 
 def test_admin_resource_add():
+    """
+    Test /admin/resource/add endpoint functionality including resource creation
+    with/without comments, duplicate validation, and field validation.
+    """
     print("=== Admin resource add endpoint tests started!")
 
     cleanup_test_databases()
@@ -178,10 +199,14 @@ def test_admin_resource_add():
         data = json.loads(response.data)
         assert 'error' in data
 
-    print(f"{GREEN}Admin resource add tests passed!{RESET}\n")
+    print(f"{GREEN}Admin resource add tests passed!{RESET}")
 
 
 def test_endpoint_reservation_lifecycle():
+    """
+    Test complete reservation lifecycle through API endpoints including
+    multiple user requests, queue management, cancellations, and releases.
+    """
     print("=== Endpoint reservation lifecycle tests started!")
 
     cleanup_test_databases()
@@ -411,9 +436,13 @@ def test_endpoint_reservation_lifecycle():
 
         client.post('/session/logout')
 
-    print(f"{GREEN}Endpoint reservation lifecycle tests passed!{RESET}\n")
+    print(f"{GREEN}Endpoint reservation lifecycle tests passed!{RESET}")
 
 def test_session_status():
+    """
+    Test /session/status endpoint functionality including logged-in/logged-out states,
+    admin vs regular user status, and proper session data return.
+    """
     print("=== Session status endpoint tests started!")
 
     cleanup_test_databases()
@@ -471,9 +500,13 @@ def test_session_status():
         assert data['user_email'] == 'test@example.com'
         assert data['is_admin'] == False
 
-    print(f"{GREEN}Session status tests passed!{RESET}\n")
+    print(f"{GREEN}Session status tests passed!{RESET}")
 
 def test_admin_user_modify():
+    """
+    Test /admin/user/modify endpoint functionality including admin modifications,
+    self-modification, authorization checks, and field validation.
+    """
     print("=== Admin user modify endpoint tests started!")
 
     cleanup_test_databases()
@@ -530,9 +563,89 @@ def test_admin_user_modify():
         response = client.post('/admin/user/modify', data=json.dumps({'email': 'test@example.com'}), content_type='application/json')
         assert response.status_code == 400
 
-    print(f"{GREEN}Admin user modify tests passed!{RESET}\n")
+    print(f"{GREEN}Admin user modify tests passed!{RESET}")
+
+def test_info_users():
+    """
+    Test /info/users endpoint functionality including admin-only access control,
+    proper user data formatting, and field validation.
+    """
+    print("=== Info users endpoint tests started!")
+
+    cleanup_test_databases()
+
+    config_dict = {
+        'app_name': TEST_APP_NAME,
+        'version': '1.0.0',
+        'log': {'log_name': 'test.log', 'level': 'DEBUG', 'backupCount': 1},
+        'database': {'name': TEST_DB_NAME}
+    }
+
+    app = ReserviaApp(config_dict)
+    operation = 0
+
+    with app.test_client() as client:
+        operation += 1
+        print(f"\n{operation}. Unauthorized access test")
+        response = client.get('/info/users')
+        assert response.status_code == 403
+        data = json.loads(response.data)
+        assert 'error' in data
+        assert 'Admin access required' in data['error']
+
+        operation += 1
+        print(f"\n{operation}. Admin login test")
+        client.post('/session/login', data=json.dumps({'name': 'admin', 'password': hash_password('admin')}), content_type='application/json')
+        response = client.get('/info/users')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['message'] == 'Users retrieved successfully'
+        assert 'users' in data
+        assert data['count'] == 1
+        assert data['users'][0]['name'] == 'admin'
+        assert data['users'][0]['email'] == 'admin@admin.se'
+        assert data['users'][0]['is_admin'] == True
+        assert 'id' in data['users'][0]
+
+        operation += 1
+        print(f"\n{operation}. Create additional users and test")
+        client.post('/admin/user/add', data=json.dumps({'name': 'John Doe', 'email': 'john@example.com', 'password': hash_password('pass123')}), content_type='application/json')
+        client.post('/admin/user/add', data=json.dumps({'name': 'Jane Smith', 'email': 'jane@example.com', 'password': hash_password('pass456')}), content_type='application/json')
+        
+        response = client.get('/info/users')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['count'] == 3
+        
+        user_names = [u['name'] for u in data['users']]
+        assert 'admin' in user_names
+        assert 'John Doe' in user_names
+        assert 'Jane Smith' in user_names
+        
+        # Check all required fields are present
+        for user in data['users']:
+            assert 'id' in user
+            assert 'name' in user
+            assert 'email' in user
+            assert 'is_admin' in user
+
+        operation += 1
+        print(f"\n{operation}. Regular user cannot access")
+        client.post('/session/logout')
+        client.post('/session/login', data=json.dumps({'name': 'John Doe', 'password': hash_password('pass123')}), content_type='application/json')
+        response = client.get('/info/users')
+        assert response.status_code == 403
+        data = json.loads(response.data)
+        assert 'error' in data
+        assert 'Admin access required' in data['error']
+
+    print(f"{GREEN}Info users tests passed!{RESET}")
 
 def test_admin_resource_modify():
+    """
+    Test /admin/resource/modify endpoint functionality including name/comment updates,
+    duplicate validation, authorization checks, and field validation.
+    """
     print("=== Admin resource modify endpoint tests started!")
 
     cleanup_test_databases()
@@ -619,7 +732,7 @@ def test_admin_resource_modify():
         assert 'error' in data
         assert 'At least one field must be provided' in data['error']
 
-    print(f"{GREEN}Admin resource modify tests passed!{RESET}\n")
+    print(f"{GREEN}Admin resource modify tests passed!{RESET}")
 
 if __name__ == "__main__":
     try:
@@ -627,6 +740,7 @@ if __name__ == "__main__":
         test_admin_resource_add()
         test_admin_user_modify()
         test_admin_resource_modify()
+        test_info_users()
         test_endpoint_reservation_lifecycle()
         test_session_status()
     except Exception as e:

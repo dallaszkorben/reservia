@@ -14,7 +14,7 @@ body {
     background: rgba(255,255,255,0.95); /* Bright white with slight transparency */
     backdrop-filter: blur(20px); /* Strong glass effect */
     border-radius: 16px; /* More rounded corners */
-    padding: 25px;
+    padding: 10px;
     margin-bottom: 25px;
     box-shadow: 0 10px 40px rgba(0,122,255,0.2); /* Blue-tinted shadow */
     border: 1px solid rgba(255,255,255,0.3); /* Subtle white border */
@@ -56,10 +56,16 @@ h1 {
     box-shadow: 0 6px 20px rgba(0,122,255,0.4) !important;
 }
 
+/* Disable hover effects when dialogs are open */
+.ui-button.dialog-disabled:hover {
+    transform: none !important;
+    box-shadow: 0 4px 15px rgba(0,122,255,0.3) !important;
+}
+
 /* ===== MODIFY BUTTON ===== */
 /* Orange Apple-style button for modify functionality */
 #modify-btn.ui-button {
-    background: linear-gradient(135deg, #FF9500, #FFAD33) !important; /* Apple orange gradient */
+    background: linear-gradient(135deg, #e58600, #f7cf93) !important; /* Apple orange gradient */
     box-shadow: 0 4px 15px rgba(255,149,0,0.3) !important; /* Orange shadow */
 }
 
@@ -67,16 +73,43 @@ h1 {
     box-shadow: 0 6px 20px rgba(255,149,0,0.4) !important; /* Stronger orange shadow on hover */
 }
 
+#modify-btn.ui-button.dialog-disabled:hover {
+    transform: none !important;
+    box-shadow: 0 4px 15px rgba(255,149,0,0.3) !important;
+}
+
 /* ===== MANAGE RESOURCE DROPDOWN ===== */
 /* Green Apple-style button for resource management */
 #manage-resource-btn.ui-button {
-    background: linear-gradient(135deg, #34C759, #30D158) !important; /* Apple green gradient */
+    background: linear-gradient(135deg, #1d7e35, #86ffa4) !important; /* Apple green gradient */
     box-shadow: 0 4px 15px rgba(52,199,89,0.3) !important; /* Green shadow */
     position: relative;
 }
 
 #manage-resource-btn.ui-button:hover {
     box-shadow: 0 6px 20px rgba(52,199,89,0.4) !important; /* Stronger green shadow on hover */
+}
+
+#manage-resource-btn.ui-button.dialog-disabled:hover {
+    transform: none !important;
+    box-shadow: 0 4px 15px rgba(52,199,89,0.3) !important;
+}
+
+/* ===== MANAGE USER DROPDOWN ===== */
+/* Green Apple-style button for user management */
+#manage-user-btn.ui-button {
+    background: linear-gradient(135deg, #1d7e35, #86ffa4) !important; /* Apple green gradient */
+    box-shadow: 0 4px 15px rgba(52,199,89,0.3) !important; /* Green shadow */
+    position: relative;
+}
+
+#manage-user-btn.ui-button:hover {
+    box-shadow: 0 6px 20px rgba(52,199,89,0.4) !important; /* Stronger green shadow on hover */
+}
+
+#manage-user-btn.ui-button.dialog-disabled:hover {
+    transform: none !important;
+    box-shadow: 0 4px 15px rgba(52,199,89,0.3) !important;
 }
 
 /* Dropdown menu container */
@@ -165,6 +198,30 @@ h1 {
 .submenu-resource-item:hover {
     background-color: rgba(0,122,255,0.1);
     color: #007AFF;
+}
+
+.submenu-user-item {
+    padding: 8px 12px;
+    color: #333;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+    border-bottom: 1px solid #eee;
+}
+
+.submenu-user-item:last-child {
+    border-bottom: none;
+    border-radius: 0 0 12px 12px;
+}
+
+.submenu-user-item:first-child {
+    border-radius: 12px 12px 0 0;
+}
+
+.submenu-user-item:hover {
+    background-color: rgba(52,199,89,0.1);
+    color: #34C759;
 }
 
 /* ===== LOGIN DIALOG ===== */

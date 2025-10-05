@@ -24,7 +24,7 @@
         <button id="logout-btn" style="margin-right:10px;">Logout</button>
         <button id="modify-btn" style="margin-right:10px; display:none;">Modify</button>
         <div class="dropdown-container" style="display:none;" id="manage-resource-container">
-            <button id="manage-resource-btn" style="margin-right:10px;">Manage Resource</button>
+            <button id="manage-resource-btn" style="margin-right:10px;">Manage Resources</button>
             <div class="dropdown-menu" id="resource-dropdown">
                 <div class="dropdown-item" data-action="add">Add</div>
                 <div class="dropdown-item" data-action="remove">Remove</div>
@@ -32,6 +32,19 @@
                     Modify >
                     <div class="dropdown-submenu-content" id="modify-submenu" style="display:none;">
                         <!-- Resources will be loaded here dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="dropdown-container" style="display:none;" id="manage-user-container">
+            <button id="manage-user-btn" style="margin-right:10px;">Manage Users</button>
+            <div class="dropdown-menu" id="user-dropdown">
+                <div class="dropdown-item" data-action="add">Add</div>
+                <div class="dropdown-item" data-action="remove">Remove</div>
+                <div class="dropdown-item dropdown-submenu" data-action="modify">
+                    Modify >
+                    <div class="dropdown-submenu-content" id="modify-user-submenu" style="display:none;">
+                        <!-- Users will be loaded here dynamically -->
                     </div>
                 </div>
             </div>
@@ -87,6 +100,27 @@
         <div id="modify-resource-success" style="color:green; display:none; margin-top:15px;"></div>
     </div>
 
+    <div id="add-user-form" style="display:none;">
+        <h2>Add New User</h2>
+        <input type="text" id="user-name" placeholder="User Name (required)">
+        <input type="email" id="user-email" placeholder="Email (required)">
+        <input type="password" id="user-password" placeholder="Password (required)">
+        <button id="add-user-submit">Add</button>
+        <button id="add-user-cancel">Cancel</button>
+        <div id="add-user-error" style="color:red; display:none; margin-top:15px;"></div>
+        <div id="add-user-success" style="color:green; display:none; margin-top:15px;"></div>
+    </div>
+
+    <div id="modify-user-form" style="display:none;">
+        <h2 id="modify-user-title">Modify User</h2>
+        <input type="email" id="modify-user-email" placeholder="Email">
+        <input type="password" id="modify-user-password" placeholder="New Password (optional)">
+        <button id="modify-user-submit">Modify</button>
+        <button id="modify-user-cancel">Cancel</button>
+        <div id="modify-user-error" style="color:red; display:none; margin-top:15px;"></div>
+        <div id="modify-user-success" style="color:green; display:none; margin-top:15px;"></div>
+    </div>
+
     <div id="main-content">
         <p>Welcome to Reservia Resource Reservation System</p>
     </div>
@@ -106,7 +140,7 @@
                 draggable: true,
                 title: 'Login to Reservia'
             });
-            
+
             $('#modify-form').dialog({
                 autoOpen: false,
                 modal: true,
@@ -115,7 +149,7 @@
                 draggable: true,
                 title: 'Modify User Data'
             });
-            
+
             $('#add-resource-form').dialog({
                 autoOpen: false,
                 modal: true,
@@ -124,7 +158,7 @@
                 draggable: true,
                 title: 'Add New Resource'
             });
-            
+
             $('#resource-select-form').dialog({
                 autoOpen: false,
                 modal: true,
@@ -133,7 +167,7 @@
                 draggable: true,
                 title: 'Select Resource to Modify'
             });
-            
+
             $('#modify-resource-form').dialog({
                 autoOpen: false,
                 modal: true,
@@ -141,6 +175,24 @@
                 resizable: false,
                 draggable: true,
                 title: 'Modify Resource'
+            });
+
+            $('#add-user-form').dialog({
+                autoOpen: false,
+                modal: true,
+                width: 400,
+                resizable: false,
+                draggable: true,
+                title: 'Add New User'
+            });
+
+            $('#modify-user-form').dialog({
+                autoOpen: false,
+                modal: true,
+                width: 400,
+                resizable: false,
+                draggable: true,
+                title: 'Modify User'
             });
 
             console.log('Page loaded, checking session...');
@@ -163,6 +215,7 @@
             });
 
             $('#modify-btn').click(function() {
+                if (isAnyDialogOpen()) return; // Disable if dialog is open
                 showModifyForm();
             });
 
@@ -198,39 +251,89 @@
                 hideModifyResourceForm();
             });
 
+            $('#add-user-submit').click(function() {
+                addUser();
+            });
+
+            $('#add-user-cancel').click(function() {
+                hideAddUserForm();
+            });
+
+            $('#modify-user-submit').click(function() {
+                modifySelectedUser();
+            });
+
+            $('#modify-user-cancel').click(function() {
+                hideModifyUserForm();
+            });
+
             // Clear error messages when typing in forms
             $('#resource-name, #resource-comment').on('input', function() {
                 clearAddResourceMessages();
             });
-            
+
             $('#modify-email, #modify-password').on('input', function() {
                 clearModifyMessages();
             });
-            
+
             $('#modify-resource-name, #modify-resource-comment').on('input', function() {
                 clearModifyResourceMessages();
+            });
+
+            $('#user-name, #user-email, #user-password').on('input', function() {
+                clearAddUserMessages();
+            });
+
+            $('#modify-user-email, #modify-user-password').on('input', function() {
+                clearModifyUserMessages();
             });
 
             // Manage Resource dropdown functionality - click to toggle
             $('#manage-resource-btn').click(function(e) {
                 e.stopPropagation();
+                if (isAnyDialogOpen()) return; // Disable if dialog is open
+                $('#user-dropdown').hide(); // Close user dropdown
                 $('#resource-dropdown').toggle();
             });
 
-            // Hide dropdown when clicking outside
-            $(document).click(function() {
-                $('#resource-dropdown').hide();
+            // Manage User dropdown functionality - click to toggle
+            $('#manage-user-btn').click(function(e) {
+                e.stopPropagation();
+                if (isAnyDialogOpen()) return; // Disable if dialog is open
+                $('#resource-dropdown').hide(); // Close resource dropdown
+                $('#user-dropdown').toggle();
             });
 
-            // Prevent dropdown from closing when clicking inside it
-            $('#resource-dropdown').click(function(e) {
+            // Hide all dropdowns when clicking outside
+            $(document).click(function() {
+                $('#resource-dropdown').hide();
+                $('#user-dropdown').hide();
+            });
+
+            // Prevent dropdowns from closing when clicking inside them
+            $('#resource-dropdown, #user-dropdown').click(function(e) {
                 e.stopPropagation();
             });
 
-            // Dropdown item clicks
-            $('.dropdown-item').click(function(e) {
+            // Handle user dropdown menu item clicks
+            $('#user-dropdown .dropdown-item').click(function(e) {
                 const action = $(this).data('action');
-                
+
+                if (action === 'add') {
+                    $('#user-dropdown').hide();
+                    showAddUserForm();
+                } else if (action === 'remove') {
+                    $('#user-dropdown').hide();
+                    console.log('Remove user clicked');
+                    // TODO: Implement remove user functionality
+                }
+                // Note: modify action is handled by hover, not click
+            });
+
+            // Resource dropdown item clicks
+            $('#resource-dropdown .dropdown-item').click(function(e) {
+                const action = $(this).data('action');
+
                 if (action === 'add') {
                     $('#resource-dropdown').hide();
                     showAddResourceForm();
@@ -241,41 +344,77 @@
                 }
                 // Note: modify action is handled by hover, not click
             });
-            
-            // Hover-based submenu for modify
-            $('.dropdown-submenu').mouseenter(function() {
+
+            // Hover-based submenu for modify resources
+            $('#resource-dropdown .dropdown-submenu').mouseenter(function() {
                 loadResourcesIntoSubmenu();
                 $('#modify-submenu').show();
             });
-            
-            $('.dropdown-submenu').mouseleave(function() {
+
+            $('#resource-dropdown .dropdown-submenu').mouseleave(function() {
                 setTimeout(() => {
                     if (!$('#modify-submenu:hover').length) {
                         $('#modify-submenu').hide();
                     }
                 }, 100);
             });
-            
-            // Keep submenu open when hovering over it
+
+            // Keep resource submenu open when hovering over it
             $('#modify-submenu').mouseenter(function() {
                 $(this).show();
             });
-            
+
             $('#modify-submenu').mouseleave(function() {
                 $(this).hide();
             });
-            
+
+            // Hover-based submenu for modify users
+            $('#user-dropdown .dropdown-submenu').mouseenter(function() {
+                loadUsersIntoSubmenu();
+                $('#modify-user-submenu').show();
+            });
+
+            $('#user-dropdown .dropdown-submenu').mouseleave(function() {
+                setTimeout(() => {
+                    if (!$('#modify-user-submenu:hover').length) {
+                        $('#modify-user-submenu').hide();
+                    }
+                }, 100);
+            });
+
+            // Keep user submenu open when hovering over it
+            $('#modify-user-submenu').mouseenter(function() {
+                $(this).show();
+            });
+
+            $('#modify-user-submenu').mouseleave(function() {
+                $(this).hide();
+            });
+
             // Handle resource clicks in submenu
             $('#modify-submenu').on('click', '.submenu-resource-item', function(e) {
                 e.stopPropagation();
-                
+
                 const resourceId = $(this).data('resource-id');
                 const resourceName = $(this).data('resource-name');
                 const resourceComment = $(this).data('resource-comment');
-                
+
                 $('#resource-dropdown').hide();
                 $('#modify-submenu').hide();
                 showModifyResourceForm(resourceId, resourceName, resourceComment);
+            });
+
+            // Handle user clicks in submenu
+            $('#modify-user-submenu').on('click', '.submenu-user-item', function(e) {
+                e.stopPropagation();
+
+                const userId = $(this).data('user-id');
+                const userName = $(this).data('user-name');
+                const userEmail = $(this).data('user-email');
+
+                $('#user-dropdown').hide();
+                $('#modify-user-submenu').hide();
+                showModifyUserForm(userId, userName, userEmail);
             });
 
             // Initialize ResourcePool
@@ -292,6 +431,35 @@
         $(window).resize(function() {
             ResourcePool.getInstance().updateLayout();
         });
+
+        // ===== DIALOG STATE CHECKER =====
+        function isAnyDialogOpen() {
+            return $('#login-form').dialog('isOpen') ||
+                   $('#modify-form').dialog('isOpen') ||
+                   $('#add-resource-form').dialog('isOpen') ||
+                   $('#resource-select-form').dialog('isOpen') ||
+                   $('#modify-resource-form').dialog('isOpen') ||
+                   $('#add-user-form').dialog('isOpen') ||
+                   $('#modify-user-form').dialog('isOpen');
+        }
+
+        // ===== CLOSE DROPDOWNS WHEN DIALOG OPENS =====
+        function closeAllDropdowns() {
+            $('#resource-dropdown').hide();
+            $('#user-dropdown').hide();
+        }
+
+        // ===== DISABLE HOVER EFFECTS WHEN DIALOG IS OPEN =====
+        function updateButtonStates() {
+            if (isAnyDialogOpen()) {
+                $('#modify-btn, #manage-resource-btn, #manage-user-btn').addClass('dialog-disabled');
+            } else {
+                $('#modify-btn, #manage-resource-btn, #manage-user-btn').removeClass('dialog-disabled');
+            }
+        }
+
+        // Monitor dialog state changes
+        setInterval(updateButtonStates, 100);
 
         function checkSession() {
             $.ajax({
@@ -324,7 +492,7 @@
             try {
                 // Hash password on client side before sending
                 const hashedPassword = await hashPassword(password);
-                
+
                 $.ajax({
                     url: '/session/login',
                     method: 'POST',
@@ -365,11 +533,13 @@
             $('#logout-btn').show();
             $('#modify-btn').show();
 
-            // Show Manage Resource button only for admin users
+            // Show Manage Resource and Manage User buttons only for admin users
             if (response.is_admin) {
                 $('#manage-resource-container').show();
+                $('#manage-user-container').show();
             } else {
                 $('#manage-resource-container').hide();
+                $('#manage-user-container').hide();
             }
 
             // Admin warning is handled by SessionManager.setSessionData()
@@ -393,6 +563,7 @@
             $('#logout-btn').hide();
             $('#modify-btn').hide();
             $('#manage-resource-container').hide();
+            $('#manage-user-container').hide();
 
             // Admin warning reset is handled by SessionManager.clearSessionData()
 
@@ -406,6 +577,8 @@
             hideAddResourceForm();
             hideResourceSelectForm();
             hideModifyResourceForm();
+            hideAddUserForm();
+            hideModifyUserForm();
 
             // Stop auto-refresh and clear resources for logged-out user
             stopAutoRefresh();
@@ -413,6 +586,7 @@
         }
 
         function showLoginForm() {
+            closeAllDropdowns();
             $('#login-form').dialog('open');
             $('#username').val('');
             $('#password').val('');
@@ -433,6 +607,7 @@
         }
 
         function showModifyForm() {
+            closeAllDropdowns();
             const userName = getCurrentUserNameFromTooltip();
             const title = userName ? `Modify ${userName} Data` : 'Modify User Data';
             $('#modify-title').text(title);
@@ -521,6 +696,7 @@
         }
 
         function showAddResourceForm() {
+            closeAllDropdowns();
             $('#add-resource-form').dialog('open');
             $('#resource-name').val('');
             $('#resource-comment').val('');
@@ -591,6 +767,7 @@
         }
 
         function showResourceSelectForm() {
+            closeAllDropdowns();
             // Load resources into dropdown
             loadResourcesIntoDropdown();
             $('#resource-select-form').dialog('open');
@@ -611,7 +788,7 @@
                     const select = $('#resource-select');
                     select.empty();
                     select.append('<option value="">-- Select a resource --</option>');
-                    
+
                     if (response.resources && response.resources.length > 0) {
                         response.resources.forEach(resource => {
                             select.append(`<option value="${resource.id}" data-name="${resource.name}" data-comment="${resource.comment || ''}">${resource.name}</option>`);
@@ -627,15 +804,15 @@
         function selectResourceToModify() {
             const selectedOption = $('#resource-select option:selected');
             const resourceId = selectedOption.val();
-            
+
             if (!resourceId) {
                 showResourceSelectError('Please select a resource');
                 return;
             }
-            
+
             const resourceName = selectedOption.data('name');
             const resourceComment = selectedOption.data('comment');
-            
+
             hideResourceSelectForm();
             showModifyResourceForm(resourceId, resourceName, resourceComment);
         }
@@ -649,6 +826,7 @@
         }
 
         function showModifyResourceForm(resourceId, name, comment) {
+            closeAllDropdowns();
             $('#modify-resource-title').text(`Modify Resource: ${name}`);
             $('#modify-resource-name').val(name);
             $('#modify-resource-comment').val(comment || '');
@@ -677,7 +855,7 @@
                 return;
             }
 
-            const data = { 
+            const data = {
                 resource_id: resourceId,
                 name: name,
                 comment: comment
@@ -720,7 +898,7 @@
             $('#modify-resource-error').hide();
             $('#modify-resource-success').hide();
         }
-        
+
         function loadResourcesIntoSubmenu() {
             $.ajax({
                 url: '/info/resources',
@@ -728,7 +906,7 @@
                 success: function(response) {
                     const submenu = $('#modify-submenu');
                     submenu.empty();
-                    
+
                     if (response.resources && response.resources.length > 0) {
                         response.resources.forEach(resource => {
                             const item = $('<div></div>')
@@ -749,6 +927,111 @@
                     submenu.append('<div style="padding: 8px 12px; color: #f00;">Failed to load resources</div>');
                 }
             });
+        }
+
+        function loadUsersIntoSubmenu() {
+            $.ajax({
+                url: '/info/users',
+                method: 'GET',
+                success: function(response) {
+                    const submenu = $('#modify-user-submenu');
+                    submenu.empty();
+
+                    if (response.users && response.users.length > 0) {
+                        response.users.forEach(user => {
+                            const item = $('<div></div>')
+                                .addClass('submenu-user-item')
+                                .attr('data-user-id', user.id)
+                                .attr('data-user-name', user.name)
+                                .attr('data-user-email', user.email)
+                                .text(user.name);
+                            submenu.append(item);
+                        });
+                    } else {
+                        submenu.append('<div style="padding: 8px 12px; color: #999;">No users available</div>');
+                    }
+                },
+                error: function(xhr) {
+                    const submenu = $('#modify-user-submenu');
+                    submenu.empty();
+                    submenu.append('<div style="padding: 8px 12px; color: #f00;">Failed to load users</div>');
+                }
+            });
+        }
+
+        function showModifyUserForm(userId, userName, userEmail) {
+            closeAllDropdowns();
+            $('#modify-user-title').text(`Modify User: ${userName}`);
+            $('#modify-user-email').val(userEmail);
+            $('#modify-user-password').val('');
+            $('#modify-user-form').data('user-id', userId);
+            $('#modify-user-form').dialog('open');
+            clearModifyUserMessages();
+        }
+
+        function hideModifyUserForm() {
+            $('#modify-user-form').dialog('close');
+            clearModifyUserMessages();
+        }
+
+        async function modifySelectedUser() {
+            const userId = $('#modify-user-form').data('user-id');
+            const email = $('#modify-user-email').val().trim();
+            const password = $('#modify-user-password').val();
+
+            if (!email) {
+                showModifyUserError('Email is required');
+                return;
+            }
+
+            try {
+                const data = {
+                    user_id: userId,
+                    email: email
+                };
+
+                if (password) {
+                    data.password = await hashPassword(password);
+                }
+
+                $.ajax({
+                    url: '/admin/user/modify',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data),
+                    success: function(response) {
+                        showModifyUserSuccess('User modified successfully');
+                        setTimeout(() => {
+                            hideModifyUserForm();
+                        }, 1500);
+                    },
+                    error: function(xhr) {
+                        try {
+                            const errorResponse = JSON.parse(xhr.responseText);
+                            showModifyUserError(errorResponse.error || 'Failed to modify user');
+                        } catch (e) {
+                            showModifyUserError('Failed to modify user');
+                        }
+                    }
+                });
+            } catch (error) {
+                showModifyUserError('Password hashing failed');
+            }
+        }
+
+        function showModifyUserError(message) {
+            $('#modify-user-error').text(message).show();
+            $('#modify-user-success').hide();
+        }
+
+        function showModifyUserSuccess(message) {
+            $('#modify-user-success').text(message).show();
+            $('#modify-user-error').hide();
+        }
+
+        function clearModifyUserMessages() {
+            $('#modify-user-error').hide();
+            $('#modify-user-success').hide();
         }
 
         // Auto-logout on session expiry

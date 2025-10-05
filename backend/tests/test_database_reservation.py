@@ -1,3 +1,16 @@
+"""
+Database Reservation Lifecycle Test Suite
+
+Comprehensive test suite for the Reservia reservation system, covering:
+- Reservation request failures and edge cases
+- Cancellation and release operations on empty tables
+- Complex multi-user reservation workflows
+- Queue management and auto-approval logic
+- Reservation state transitions and validation
+
+All tests use isolated test databases and proper cleanup.
+"""
+
 import sys
 import os
 import shutil
@@ -45,6 +58,10 @@ def cleanup_test_databases():
 
 
 def test_db_request_reservation_failure():
+    """
+    Test reservation request failure scenarios including duplicate reservations
+    and proper error handling for already reserved resources.
+    """
     print("=== Database request reservation failure tests started!")
 
     cleanup_test_databases()
@@ -61,33 +78,25 @@ def test_db_request_reservation_failure():
     with app.test_request_context():
         db = Database.get_instance(config_dict)
 
-        # Setup test data
-        print("\nSetting up test data...")
-        print("  Logging in as admin...")
+        operation = 0
+
+        operation += 1
+        print(f"\n{operation}. Setup test data")
         success, admin_user, _, _ = db.login("admin", hash_password("admin"))
         assert success and admin_user is not None
-
-        print("  Creating test user...")
         success, test_user, _, _ = db.create_user("testuser", "test@example.com", hash_password("testpass123"))
         assert success and test_user is not None
-
-        print("  Creating test resource...")
         success, resource, _, _ = db.create_resource("Test Resource", "A test resource for booking")
         assert success and resource is not None
         resource_id = resource.id
-
-        print("  Logging out admin and logging in as test user...")
         db.logout()
         success, logged_in_user, _, _ = db.login("testuser", hash_password("testpass123"))
         assert success and logged_in_user is not None
-
-        print("  Emptying reservation_lifecycle table...")
         db.session.query(ReservationLifecycle).delete()
         db.session.commit()
 
-        # Test first request (should succeed)
-        print("\nTesting first reservation request...")
-        print("  Making first reservation request...")
+        operation += 1
+        print(f"\n{operation}. First reservation request test")
         success, first_reservation, _, _ = db.request_reservation(resource_id)
         assert success and first_reservation is not None
         assert first_reservation.user_id == test_user.id
@@ -95,15 +104,18 @@ def test_db_request_reservation_failure():
         assert first_reservation.request_date is not None
         assert first_reservation.approved_date is not None  # Should be auto-approved
 
-        # Test second request (should fail)
-        print("\nTesting duplicate reservation request...")
-        print("  Making second reservation request (should fail)...")
+        operation += 1
+        print(f"\n{operation}. Duplicate reservation request test")
         success, second_reservation, error_code, _ = db.request_reservation(resource_id)
         assert not success and second_reservation is None and error_code == "DUPLICATE_RESERVATION"
 
-    print(f"{GREEN}Database request reservation failure tests passed!{RESET}\n")
+    print(f"{GREEN}Database request reservation failure tests passed!{RESET}")
 
 def test_db_cancel_reservation_empty_table():
+    """
+    Test cancellation operations on empty reservation tables to verify
+    proper error handling when no reservations exist.
+    """
     print("=== Database cancel reservation on empty table tests started!")
 
     cleanup_test_databases()
@@ -120,39 +132,35 @@ def test_db_cancel_reservation_empty_table():
     with app.test_request_context():
         db = Database.get_instance(config_dict)
 
-        # Setup test data
-        print("\nSetting up test data...")
-        print("  Logging in as admin...")
+        operation = 0
+
+        operation += 1
+        print(f"\n{operation}. Setup test data")
         success, admin_user, _, _ = db.login("admin", hash_password("admin"))
         assert success and admin_user is not None
-
-        print("  Creating test user...")
         success, test_user, _, _ = db.create_user("testuser", "test@example.com", hash_password("testpass123"))
         assert success and test_user is not None
-
-        print("  Creating test resource...")
         success, resource, _, _ = db.create_resource("Test Resource", "A test resource for booking")
         assert success and resource is not None
         resource_id = resource.id
-
-        print("  Logging out admin and logging in as test user...")
         db.logout()
         success, logged_in_user, _, _ = db.login("testuser", hash_password("testpass123"))
         assert success and logged_in_user is not None
-
-        print("  Emptying reservation_lifecycle table...")
         db.session.query(ReservationLifecycle).delete()
         db.session.commit()
 
-        # Test cancel on empty table (should fail)
-        print("\nTesting cancel reservation on empty table...")
-        print("  Attempting to cancel reservation (should fail)...")
+        operation += 1
+        print(f"\n{operation}. Cancel reservation on empty table test")
         success, result, error_code, _ = db.cancel_reservation(resource_id)
         assert not success and result is None and error_code == "RESERVATION_NOT_FOUND"
 
-    print(f"{GREEN}Database cancel reservation on empty table tests passed!{RESET}\n")
+    print(f"{GREEN}Database cancel reservation on empty table tests passed!{RESET}")
 
 def test_db_release_reservation_empty_table():
+    """
+    Test release operations on empty reservation tables to verify
+    proper error handling when no approved reservations exist.
+    """
     print("=== Database release reservation on empty table tests started!")
 
     cleanup_test_databases()
@@ -169,39 +177,35 @@ def test_db_release_reservation_empty_table():
     with app.test_request_context():
         db = Database.get_instance(config_dict)
 
-        # Setup test data
-        print("\nSetting up test data...")
-        print("  Logging in as admin...")
+        operation = 0
+
+        operation += 1
+        print(f"\n{operation}. Setup test data")
         success, admin_user, _, _ = db.login("admin", hash_password("admin"))
         assert success and admin_user is not None
-
-        print("  Creating test user...")
         success, test_user, _, _ = db.create_user("testuser", "test@example.com", hash_password("testpass123"))
         assert success and test_user is not None
-
-        print("  Creating test resource...")
         success, resource, _, _ = db.create_resource("Test Resource", "A test resource for booking")
         assert success and resource is not None
         resource_id = resource.id
-
-        print("  Logging out admin and logging in as test user...")
         db.logout()
         success, logged_in_user, _, _ = db.login("testuser", hash_password("testpass123"))
         assert success and logged_in_user is not None
-
-        print("  Emptying reservation_lifecycle table...")
         db.session.query(ReservationLifecycle).delete()
         db.session.commit()
 
-        # Test release on empty table (should fail)
-        print("\nTesting release reservation on empty table...")
-        print("  Attempting to release reservation (should fail)...")
+        operation += 1
+        print(f"\n{operation}. Release reservation on empty table test")
         success, result, error_code, _ = db.release_reservation(resource_id)
         assert not success and result is None and error_code == "RESERVATION_NOT_FOUND"
 
     print(f"{GREEN}Database release reservation on empty table tests passed!{RESET}\n")
 
 def test_db_reservation_lifecycle_workflow_1():
+    """
+    Test complex reservation workflow with multiple users including
+    requests, cancellations, releases, and auto-approval logic.
+    """
     print("=== Database reservation lifecycle workflow tests started!")
 
     cleanup_test_databases()
@@ -416,9 +420,13 @@ def test_db_reservation_lifecycle_workflow_1():
         #print("")
         operation += 1
 
-    print(f"{GREEN}Database release reservation on empty table tests passed!{RESET}\n")
+    print(f"{GREEN}Database release reservation on empty table tests passed!{RESET}")
 
 def test_db_reservation_lifecycle_workflow_2():
+    """
+    Test reservation workflow with user re-requesting after cancellation
+    and proper queue management with multiple users.
+    """
     print("=== Database reservation lifecycle workflow 2 tests started!")
 
     cleanup_test_databases()
@@ -593,6 +601,10 @@ def test_db_reservation_lifecycle_workflow_2():
     print(f"{GREEN}Database reservation lifecycle workflow 2 tests passed!{RESET}")
 
 def test_db_reservation_lifecycle_workflow_3():
+    """
+    Test batch reservation requests and sequential releases with
+    proper queue progression and auto-approval validation.
+    """
     print("=== Database reservation lifecycle workflow 3 tests started!")
 
     cleanup_test_databases()
@@ -706,7 +718,7 @@ def test_db_reservation_lifecycle_workflow_3():
         #print("")
         operation += 1
 
-    print(f"{GREEN}Database reservation lifecycle workflow 2 tests passed!{RESET}")
+    print(f"{GREEN}Database reservation lifecycle workflow 3 tests passed!{RESET}")
 
 
 if __name__ == "__main__":

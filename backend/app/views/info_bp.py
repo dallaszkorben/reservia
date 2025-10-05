@@ -55,6 +55,43 @@ class InfoResourceList(BaseView):
             return jsonify({"error": "Internal server error"}), 500
 
 
+class InfoUserList(BaseView):
+    """Handles GET requests for retrieving all users (admin only).
+
+    Returns all users in the system with id, name, email, and is_admin fields.
+    Only accessible by admin users.
+
+    Returns:
+        tuple: JSON response with users list and HTTP status code
+
+    Example:
+        curl -H "Content-Type: application/json" -X GET -b cookies.txt \
+             http://localhost:5000/info/users
+    """
+    def get(self):
+        logging.info(f"{LOG_PREFIX_ENDPOINT}/info/users endpoint accessed")
+
+        try:
+            db = Database.get_instance()
+            success, users, error_code, error_msg = db.get_users()
+
+            if success:
+                return jsonify({
+                    "message": "Users retrieved successfully",
+                    "users": users,
+                    "count": len(users)
+                }), 200
+            else:
+                if error_code == "UNAUTHORIZED":
+                    return jsonify({"error": error_msg}), 403
+                else:
+                    return jsonify({"error": error_msg}), 400
+
+        except Exception as e:
+            logging.error(f"{LOG_PREFIX_ENDPOINT}Error retrieving users: {str(e)}")
+            return jsonify({"error": "Internal server error"}), 500
+
+
 class InfoBlueprintManager:
     def __init__(self):
         self.blueprint = Blueprint('info', __name__, url_prefix='/info')
@@ -64,6 +101,7 @@ class InfoBlueprintManager:
         self.blueprint.add_url_rule('/is_alive', view_func=IsAliveView.as_view('is_alive'))
         self.blueprint.add_url_rule('/get_version', view_func=GetVersionView.as_view('get_version'))
         self.blueprint.add_url_rule('/resources', view_func=InfoResourceList.as_view('resource_list'), methods=['GET'])
+        self.blueprint.add_url_rule('/users', view_func=InfoUserList.as_view('user_list'), methods=['GET'])
 
     def get_blueprint(self):
         return self.blueprint

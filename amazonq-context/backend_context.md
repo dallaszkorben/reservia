@@ -72,13 +72,24 @@ reservia/
 - Comprehensive Google Style documentation
 - Full reservation management endpoints
 
+✅ **Phase 5 Complete**: Resource Management
+- `/admin/resource/modify` - Admin-only resource modification endpoint
+- `/admin/user/modify` - Admin and self-user modification endpoint
+- Complete CRUD operations for resources and users
+- Proper authorization checks (admin-only vs self-modification)
+- Comprehensive test coverage for all modification endpoints
+
 ## Implemented Features
 - `/info/is_alive` - Health check endpoint
 - `/info/get_version` - Version information endpoint
 - `/session/login` - User authentication with session creation
 - `/session/logout` - Session termination with cookie invalidation
+- `/session/status` - Check current session status
 - `/admin/user/add` - Admin-only user creation
-- `/admin/resource/add` - Resource creation
+- `/admin/user/modify` - Admin can modify any user, user can modify self
+- `/admin/resource/add` - Admin-only resource creation
+- `/admin/resource/modify` - Admin-only resource modification
+- `/info/resources` - Get all resources
 - `/reservation/request` - Create reservation requests with auto-approval
 - `/reservation/active` - Get all active reservations
 - `/reservation/cancel` - Cancel user's reservation request

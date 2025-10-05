@@ -89,14 +89,25 @@ The Reservia frontend implements a clean, object-oriented architecture with prop
 
 ## Configuration
 
+### Global GUI Configuration
+```javascript
+const GUI_CONFIG = {
+    'resource-card-width': 250,           // Width of each resource card in pixels
+    'resource-card-height': 400,          // Height of each resource card in pixels
+    'resource-card-list-font-size': 15,   // Font size for user names in the resource card
+    'resource-card-title-font-size': 25,  // Font size for resource title
+    'resource-card-title-length': 25      // Maximum characters allowed in resource name
+};
+```
+
 ### Resource Configuration (Static)
 ```javascript
-Resource.config = {
-    resource_width: 200,        // Resource rectangle width
-    resource_height: 400,       // Resource rectangle height
-    resource_gap: 20,           // Gap between resources
-    resource_list_side_gap: 6,  // Side padding for user list
-    resource_list_top_gap: 50,  // Top space for title
+ResourceCard.config = {
+    resource_width: GUI_CONFIG['resource-card-width'],    // Card width in pixels
+    resource_height: GUI_CONFIG['resource-card-height'],  // Card height in pixels
+    resource_gap: 20,                                     // Space between cards
+    resource_list_side_gap: 6,                           // Left/right padding inside card
+    resource_list_top_gap: 50,                           // Space reserved for title area
 };
 ```
 
@@ -123,6 +134,28 @@ resource.addUser("Jane", 102);
 // Update layout for responsive positioning
 pool.updateLayout();
 ```
+
+## Recent Updates
+
+### User List Layout Fix (Latest)
+**Issue**: Inconsistent spacing in resource card user lists - 10px gap on left, no gap on right
+**Root Cause**: CSS `.user-list` class had `padding: 5px` conflicting with JavaScript positioning
+**Solution**: Removed CSS padding, letting JavaScript `resource_list_side_gap: 6` control all spacing
+**Result**: Uniform 6px gaps on left, right, and bottom sides of user lists
+
+### Global Configuration System
+**Implementation**: Created centralized `GUI_CONFIG` object for all dimensions and font sizes
+**Benefits**: 
+- Single location for customizing entire interface
+- Replaced hardcoded values throughout codebase
+- JavaScript-controlled styling overrides CSS for dynamic configuration
+
+### Resource Modification Workflow
+**Features**: Complete admin resource modification system
+- Hover-based submenu: "Manage Resource" → "Modify >" → resource list
+- Direct resource selection opens modify dialog
+- REST API integration with `/admin/resource/modify` endpoint
+- Proper z-index layering for nested dropdowns
 
 ## Test Data Generation
 

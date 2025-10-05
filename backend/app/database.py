@@ -316,11 +316,43 @@ class Database:
             logging.info(f"{LOG_PREFIX_DATABASE}User updated: {user.name} (ID: {user_id})")
             return user
 
-    def get_users(self):
+    def _get_users(self):
+        """Internal method to get all users without authorization checks."""
         with self.lock:
             users = self.session.query(User).all()
             logging.info(f"{LOG_PREFIX_DATABASE}Retrieved {len(users)} users")
             return users
+
+    def get_users(self):
+        """
+        Retrieve all users in the system (admin only).
+
+        Returns:
+            tuple: (success, data, error_code, error_message)
+                - success (bool): True if users retrieved, False otherwise
+                - data (list|None): List of user dictionaries on success, None on failure
+                - error_code (str|None): Error code on failure, None on success
+                - error_message (str|None): Human-readable error message on failure, None on success
+        """
+        current_user = self.get_current_user()
+        if not current_user or not current_user.get('is_admin', False):
+            logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized user list access - admin access required")
+            return False, None, "UNAUTHORIZED", "Admin access required"
+
+        with self.lock:
+            try:
+                users = self.session.query(User).all()
+                user_list = [{
+                    'id': user.id,
+                    'name': user.name,
+                    'email': user.email,
+                    'is_admin': user.is_admin
+                } for user in users]
+                logging.info(f"{LOG_PREFIX_DATABASE}Retrieved {len(user_list)} users for admin")
+                return True, user_list, None, None
+            except Exception as e:
+                logging.error(f"{LOG_PREFIX_DATABASE}Error retrieving users: {str(e)}")
+                return False, None, "DATABASE_ERROR", "Database error occurred"
 
     # === Resource ===
 
