@@ -316,13 +316,6 @@ class Database:
             logging.info(f"{LOG_PREFIX_DATABASE}User updated: {user.name} (ID: {user_id})")
             return user
 
-    def _get_users(self):
-        """Internal method to get all users without authorization checks."""
-        with self.lock:
-            users = self.session.query(User).all()
-            logging.info(f"{LOG_PREFIX_DATABASE}Retrieved {len(users)} users")
-            return users
-
     def get_users(self):
         """
         Retrieve all users in the system (admin only).

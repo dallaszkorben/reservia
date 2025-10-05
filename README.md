@@ -134,11 +134,12 @@ reservia/
 │   ├── templates/       # HTML templates
 │   └── static/          # CSS, JavaScript, images
 ├── tests/                   # Legacy test directory
-├── backend/tests/           # Backend test suite
-│   ├── test_endpoints.py        # API endpoint tests
-│   ├── test_database.py         # Core database tests
-│   ├── test_database_session.py # Session management tests
-│   └── test_database_reservation.py # Reservation lifecycle tests
+├── backend/tests/           # Backend test suite (organized by functional area)
+│   ├── test_user_management.py     # User operations (database + API)
+│   ├── test_resource_management.py # Resource operations (database + API)
+│   ├── test_session_management.py  # Authentication and sessions (database + API)
+│   ├── test_reservation_system.py  # Reservation lifecycle (database + API)
+│   └── run_all_tests.py            # Master test runner with reporting
 ├── frontend/tests/          # Frontend test directory (manual testing)
 ├── docs/                    # Documentation and assets
 │   ├── images/              # Screenshots, diagrams, visual assets
@@ -267,6 +268,18 @@ python app.py
 
 ### Backend Tests
 
+The backend test suite is organized into logical functional areas for better maintainability and clarity:
+
+#### Test Organization
+
+- **`test_user_management.py`** - User operations (create, modify, retrieve, authorization)
+- **`test_resource_management.py`** - Resource operations (create, modify, retrieve, authorization)
+- **`test_session_management.py`** - Authentication and session management
+- **`test_reservation_system.py`** - Reservation lifecycle and queue management
+- **`run_all_tests.py`** - Master test runner with comprehensive reporting
+
+#### Running Tests
+
 To run backend tests, execute from the project root directory:
 
 1. **Activate virtual environment**:
@@ -274,18 +287,24 @@ To run backend tests, execute from the project root directory:
    source env/bin/activate
    ```
 
-2. **Run tests**:
-
-   #### Endpoint Tests
+2. **Run all tests** (recommended):
    ```bash
-   python3 -m backend.tests.test_endpoints
+   python3 -m backend.tests.run_all_tests
    ```
 
-   #### Database Tests
+3. **Run specific functional area**:
    ```bash
-   python3 -m backend.tests.test_database
-   python3 -m backend.tests.test_database_session
-   python3 -m backend.tests.test_database_reservation
+   # User management tests (database + API)
+   python3 -m backend.tests.test_user_management
+   
+   # Resource management tests (database + API)
+   python3 -m backend.tests.test_resource_management
+   
+   # Session management tests (database + API)
+   python3 -m backend.tests.test_session_management
+   
+   # Reservation system tests (database + API)
+   python3 -m backend.tests.test_reservation_system
    ```
 
 **Note**: All backend tests must be run from the project root (`reservia/`) directory to properly resolve module imports.
@@ -342,6 +361,28 @@ Frontend testing is done through browser-based interactive testing:
 - `frontend/static/js/test_frontend.js` - Interactive test functions
 - `frontend/templates/index.html` - Includes test initialization
 - Test functions: `testSimulateUserOperations()`, `testLookOfTheResourceElements()`
+
+### Test Architecture
+
+The backend test suite follows a **functional area organization** for better maintainability:
+
+#### Functional Areas
+
+| Test File | Coverage | Database Tests | API Tests |
+|-----------|----------|----------------|----------|
+| **User Management** | User CRUD operations, authorization | `create_user()`, `modify_user()`, `get_users()` | `/admin/user/add`, `/admin/user/modify`, `/info/users` |
+| **Resource Management** | Resource CRUD operations, authorization | `create_resource()`, `modify_resource()`, `get_resources()` | `/admin/resource/add`, `/admin/resource/modify`, `/info/resources` |
+| **Session Management** | Authentication, login/logout, session state | `login()`, `logout()`, `is_logged_in()` | `/session/login`, `/session/logout`, `/session/status` |
+| **Reservation System** | Reservation lifecycle, queue management | `request_reservation()`, `cancel_reservation()`, `release_reservation()` | `/reservation/request`, `/reservation/cancel`, `/reservation/release` |
+
+#### Test Features
+
+- **Isolated Testing** - Each test file uses separate test databases
+- **Comprehensive Coverage** - Both database layer and API endpoints tested
+- **Proper Cleanup** - Database cleanup and singleton reset in each test
+- **Error Handling** - Proper error reporting and test isolation
+- **Master Runner** - Single command execution with detailed reporting
+- **Logical Flow** - Tests run in dependency order: Session → Users → Resources → Reservations
 
 ## 📚 API Documentation
 
@@ -600,10 +641,9 @@ Expected response (logged out):
 
 ### Quick Test
 ```bash
-# Run all backend tests
+# Run all backend tests with comprehensive reporting
 source env/bin/activate
-python3 -m backend.tests.test_endpoints
-python3 -m backend.tests.test_database
+python3 -m backend.tests.run_all_tests
 ```
 
 ### Frontend Testing
