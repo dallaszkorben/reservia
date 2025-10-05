@@ -19,6 +19,8 @@ body {
     box-shadow: 0 10px 40px rgba(0,122,255,0.2); /* Blue-tinted shadow */
     border: 1px solid rgba(255,255,255,0.3); /* Subtle white border */
     text-align: left; /* Button alignment */
+    position: relative;
+    z-index: 20000;
 }
 
 /* ===== ADMIN WARNING ===== */
@@ -87,7 +89,7 @@ h1 {
     box-shadow: 0 8px 25px rgba(0,0,0,0.15);
     border: 1px solid rgba(255,255,255,0.3);
     min-width: 120px;
-    z-index: 1000;
+    z-index: 10000;
     display: none;
     margin-top: 2px;
 }
@@ -121,6 +123,48 @@ h1 {
 .dropdown-container {
     position: relative;
     display: inline-block;
+}
+
+/* ===== NESTED SUBMENU STYLES ===== */
+.dropdown-submenu {
+    position: relative;
+}
+
+.dropdown-submenu-content {
+    position: absolute;
+    left: 100%;
+    top: 0;
+    background: rgba(255,255,255,0.98);
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    min-width: 150px;
+    z-index: 10001;
+    margin-left: 2px;
+}
+
+.submenu-resource-item {
+    padding: 8px 12px;
+    color: #333;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+    border-bottom: 1px solid #eee;
+}
+
+.submenu-resource-item:last-child {
+    border-bottom: none;
+    border-radius: 0 0 12px 12px;
+}
+
+.submenu-resource-item:first-child {
+    border-radius: 12px 12px 0 0;
+}
+
+.submenu-resource-item:hover {
+    background-color: rgba(0,122,255,0.1);
+    color: #007AFF;
 }
 
 /* ===== LOGIN DIALOG ===== */
@@ -163,6 +207,7 @@ h1 {
     background: rgba(255,255,255,0.1); /* Subtle background */
     border-radius: 16px; /* Rounded corners */
     padding: 20px 0; /* Vertical padding */
+    z-index: 1;
 }
 
 /* ===== RESOURCE CARDS ===== */
@@ -193,7 +238,7 @@ h1 {
     /* background: rgba(255,255,255,0.1); Semi-transparent white background for user list container */
     background: rgba(0,0,0,0.1); /* Semi-transparent black background for user list container */
     border-radius: 8px;
-    padding: 5px;
+    /* padding removed - positioning handled by JavaScript */
 }
 
 /* ===== USER LIST ITEMS ===== */
@@ -204,7 +249,6 @@ h1 {
     margin: 2px 0;
     cursor: pointer;
     transition: all 0.2s ease;
-    font-size: 20px;
     text-align: center;
 }
 
@@ -234,7 +278,6 @@ h1 {
 /* ===== RESOURCE TITLE ===== */
 .resource-title {
     text-align: center;
-    font-size: 14px;
     font-weight: 600;
     color: white;
 }

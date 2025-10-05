@@ -28,7 +28,12 @@
             <div class="dropdown-menu" id="resource-dropdown">
                 <div class="dropdown-item" data-action="add">Add</div>
                 <div class="dropdown-item" data-action="remove">Remove</div>
-                <div class="dropdown-item" data-action="modify">Modify</div>
+                <div class="dropdown-item dropdown-submenu" data-action="modify">
+                    Modify >
+                    <div class="dropdown-submenu-content" id="modify-submenu" style="display:none;">
+                        <!-- Resources will be loaded here dynamically -->
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -223,18 +228,54 @@
             });
 
             // Dropdown item clicks
-            $('.dropdown-item').click(function() {
+            $('.dropdown-item').click(function(e) {
                 const action = $(this).data('action');
-                $('#resource-dropdown').hide();
                 
                 if (action === 'add') {
+                    $('#resource-dropdown').hide();
                     showAddResourceForm();
-                } else if (action === 'modify') {
-                    showResourceSelectForm();
-                } else {
+                } else if (action === 'remove') {
+                    $('#resource-dropdown').hide();
                     console.log('Resource management action:', action);
                     // TODO: Add functionality for remove action
                 }
+                // Note: modify action is handled by hover, not click
+            });
+            
+            // Hover-based submenu for modify
+            $('.dropdown-submenu').mouseenter(function() {
+                loadResourcesIntoSubmenu();
+                $('#modify-submenu').show();
+            });
+            
+            $('.dropdown-submenu').mouseleave(function() {
+                setTimeout(() => {
+                    if (!$('#modify-submenu:hover').length) {
+                        $('#modify-submenu').hide();
+                    }
+                }, 100);
+            });
+            
+            // Keep submenu open when hovering over it
+            $('#modify-submenu').mouseenter(function() {
+                $(this).show();
+            });
+            
+            $('#modify-submenu').mouseleave(function() {
+                $(this).hide();
+            });
+            
+            // Handle resource clicks in submenu
+            $('#modify-submenu').on('click', '.submenu-resource-item', function(e) {
+                e.stopPropagation();
+                
+                const resourceId = $(this).data('resource-id');
+                const resourceName = $(this).data('resource-name');
+                const resourceComment = $(this).data('resource-comment');
+                
+                $('#resource-dropdown').hide();
+                $('#modify-submenu').hide();
+                showModifyResourceForm(resourceId, resourceName, resourceComment);
             });
 
             // Initialize ResourcePool
@@ -500,6 +541,11 @@
                 return;
             }
 
+            if (name.length > GUI_CONFIG['resource-card-title-length']) {
+                showAddResourceError(`Resource name must be ${GUI_CONFIG['resource-card-title-length']} characters or less`);
+                return;
+            }
+
             const data = { name: name };
             if (comment) {
                 data.comment = comment;
@@ -626,6 +672,11 @@
                 return;
             }
 
+            if (name.length > GUI_CONFIG['resource-card-title-length']) {
+                showModifyResourceError(`Resource name must be ${GUI_CONFIG['resource-card-title-length']} characters or less`);
+                return;
+            }
+
             const data = { 
                 resource_id: resourceId,
                 name: name,
@@ -668,6 +719,36 @@
         function clearModifyResourceMessages() {
             $('#modify-resource-error').hide();
             $('#modify-resource-success').hide();
+        }
+        
+        function loadResourcesIntoSubmenu() {
+            $.ajax({
+                url: '/info/resources',
+                method: 'GET',
+                success: function(response) {
+                    const submenu = $('#modify-submenu');
+                    submenu.empty();
+                    
+                    if (response.resources && response.resources.length > 0) {
+                        response.resources.forEach(resource => {
+                            const item = $('<div></div>')
+                                .addClass('submenu-resource-item')
+                                .attr('data-resource-id', resource.id)
+                                .attr('data-resource-name', resource.name)
+                                .attr('data-resource-comment', resource.comment || '')
+                                .text(resource.name);
+                            submenu.append(item);
+                        });
+                    } else {
+                        submenu.append('<div style="padding: 8px 12px; color: #999;">No resources available</div>');
+                    }
+                },
+                error: function(xhr) {
+                    const submenu = $('#modify-submenu');
+                    submenu.empty();
+                    submenu.append('<div style="padding: 8px 12px; color: #f00;">Failed to load resources</div>');
+                }
+            });
         }
 
         // Auto-logout on session expiry

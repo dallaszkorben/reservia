@@ -1,7 +1,27 @@
+// ===== GLOBAL GUI CONFIGURATION =====
+// Centralized configuration for all GUI dimensions and styling
+// This allows easy customization of the entire interface from one location
+const GUI_CONFIG = {
+    'resource-card-width': 250,           // Width of each resource card in pixels
+    'resource-card-height': 400,          // Height of each resource card in pixels
+    'resource-card-list-font-size': 15,   // Font size for user names in the resource card
+    'resource-card-title-font-size': 25,  // Font size for resource title
+    'resource-card-title-length': 25      // Maximum characters allowed in resource name
+};
+
 // ===== LAYOUT MANAGER =====
+// Static utility class that calculates responsive grid positioning for resource cards
+// Handles automatic layout calculation based on screen width and resource count
 class LayoutManager {
+    /**
+     * Calculates how many resource cards fit per row and total rows needed
+     * This enables responsive design that adapts to different screen sizes
+     * @param {number} resource_count - Total number of resources to display
+     * @param {object} config - Configuration object with dimensions
+     * @returns {object} Layout information (rectangles_per_row, total_rows, screen_width, resource_count)
+     */
     static calculateLayout(resource_count, config) {
-        const screen_width = $(window).width() - 40;
+        const screen_width = $(window).width() - 40;  // Leave 40px margin
         const rectangle_with_gap = config.resource_width + config.resource_gap;
         const rectangles_per_row = Math.floor(screen_width / rectangle_with_gap);
         const total_rows = Math.max(1, Math.ceil(resource_count / rectangles_per_row));
@@ -9,77 +29,123 @@ class LayoutManager {
         return { rectangles_per_row, total_rows, screen_width, resource_count };
     }
 
+    /**
+     * Calculates exact pixel position for a resource card based on its index
+     * Supports different alignment options (center, left, right)
+     * @param {number} index - Zero-based index of the resource card
+     * @param {object} layout - Layout information from calculateLayout()
+     * @param {object} config - Configuration object with dimensions
+     * @param {string} alignment - How to align the grid ('center', 'left', 'right')
+     * @returns {object} Position coordinates {x, y} in pixels
+     */
     static getPosition(index, layout, config, alignment = 'center') {
-        const row = Math.floor(index / layout.rectangles_per_row);
-        const col = index % layout.rectangles_per_row;
+        const row = Math.floor(index / layout.rectangles_per_row);  // Which row this card is in
+        const col = index % layout.rectangles_per_row;              // Which column this card is in
 
+        // Calculate how many cards are in the current row (last row might be partial)
         const rectangles_in_current_row = Math.min(layout.rectangles_per_row, layout.resource_count - (row * layout.rectangles_per_row));
         const total_row_width = (rectangles_in_current_row * config.resource_width) + ((rectangles_in_current_row - 1) * config.resource_gap);
 
+        // Calculate starting X position based on alignment preference
         let start_x;
         if (alignment === 'center') {
-            start_x = (layout.screen_width - total_row_width) / 2;
+            start_x = (layout.screen_width - total_row_width) / 2;  // Center the row
         } else if (alignment === 'right') {
-            start_x = layout.screen_width - total_row_width;
+            start_x = layout.screen_width - total_row_width;        // Right-align the row
         } else { // 'left'
-            start_x = 0;
+            start_x = 0;                                            // Left-align the row
         }
 
         const x_position = start_x + (col * (config.resource_width + config.resource_gap));
-        const y_position = (row * (config.resource_height + config.resource_gap)) + 20;
+        const y_position = (row * (config.resource_height + config.resource_gap)) + 20;  // 20px top margin
 
         return { x: x_position, y: y_position };
     }
 }
 
 // ===== RESOURCE POOL SINGLETON =====
+// Manages the collection of all resource cards and their layout
+// Uses singleton pattern to ensure only one instance exists across the application
 class ResourcePool {
     static instance = null;
 
+    /**
+     * Private constructor - use getInstance() instead
+     * Initializes the resource pool with DOM container and event system
+     * @param {string} alignment - How to align the resource grid ('center', 'left', 'right')
+     */
     constructor(alignment = 'center') {
         if (ResourcePool.instance) {
-            return ResourcePool.instance;
+            return ResourcePool.instance;  // Return existing instance (singleton pattern)
         }
-        this.container = $('#resource-pool-container');
-        this.resources = [];
-        this.listeners = {};
-        this.alignment = alignment;
+        this.container = $('#resource-pool-container');  // Main DOM container for all resources
+        this.resources = [];                             // Array of ResourceCard objects
+        this.listeners = {};                             // Event listeners for custom events
+        this.alignment = alignment;                      // Grid alignment preference
         ResourcePool.instance = this;
     }
 
+    /**
+     * Gets the singleton instance, creating it if it doesn't exist
+     * This ensures only one ResourcePool exists in the entire application
+     * @param {string} alignment - Grid alignment preference
+     * @returns {ResourcePool} The singleton instance
+     */
     static getInstance(alignment = 'center') {
         if (!ResourcePool.instance) {
             ResourcePool.instance = new ResourcePool(alignment);
         } else if (alignment !== 'center') {
-            ResourcePool.instance.alignment = alignment;
+            ResourcePool.instance.alignment = alignment;  // Update alignment if different
         }
         return ResourcePool.instance;
     }
 
+    /**
+     * Adds a new resource card to the pool and creates its visual representation
+     * Links the data model (ResourceCard) with its view (ResourceView)
+     * @param {ResourceCard} resource_card - The resource data model to add
+     */
     addResource(resource_card) {
         this.resources.push(resource_card);
-        const view = new ResourceView(resource_card, this.container, this);
-        resource_card.setView(view);
+        const view = new ResourceView(resource_card, this.container, this);  // Create DOM representation
+        resource_card.setView(view);  // Link model to view for two-way communication
     }
 
+    /**
+     * Removes all resources from the pool and cleans up their DOM elements
+     * Used when logging out or refreshing the resource list
+     */
     clear() {
-        this.resources.forEach(resource_card => resource_card.view?.destroy());
-        this.container.empty();
-        this.resources = [];
+        this.resources.forEach(resource_card => resource_card.view?.destroy());  // Clean up DOM
+        this.container.empty();  // Remove all child elements from container
+        this.resources = [];     // Clear the array
     }
 
+    /**
+     * Recalculates and updates the position of all resource cards
+     * Called when window is resized or resources are added/removed
+     * This makes the layout responsive to screen size changes
+     */
     updateLayout() {
         const config = ResourceCard.config;
         const layout = LayoutManager.calculateLayout(this.resources.length, config);
 
+        // Adjust container height to fit all rows
         this.container.height((layout.total_rows * (config.resource_height + config.resource_gap)) - config.resource_gap + 5);
 
+        // Update position of each resource card
         this.resources.forEach((resource_card, index) => {
             const position = LayoutManager.getPosition(index, layout, config, this.alignment);
             resource_card.view?.setPosition(position.x, position.y);
         });
     }
 
+    /**
+     * Registers an event listener for custom events
+     * Enables communication between different parts of the application
+     * @param {string} event - Event name (e.g., 'resource_selected', 'user_selected')
+     * @param {function} callback - Function to call when event occurs
+     */
     addEventListener(event, callback) {
         if (!this.listeners[event]) {
             this.listeners[event] = [];
@@ -87,95 +153,163 @@ class ResourcePool {
         this.listeners[event].push(callback);
     }
 
+    /**
+     * Removes a specific event listener
+     * @param {string} event - Event name
+     * @param {function} callback - The specific callback function to remove
+     */
     removeEventListener(event, callback) {
         if (this.listeners[event]) {
             this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
         }
     }
 
+    /**
+     * Triggers all listeners for a specific event
+     * This is how different parts of the app communicate with each other
+     * @param {string} event - Event name to trigger
+     * @param {object} data - Data to pass to the event listeners
+     */
     dispatchEvent(event, data) {
         if (this.listeners[event]) {
             this.listeners[event].forEach(callback => callback(data));
         }
     }
 
+    /**
+     * Handles when a resource card is clicked (not a user within it)
+     * Dispatches a 'resource_selected' event for other components to handle
+     * @param {number} resource_id - ID of the selected resource
+     * @param {string} resource_name - Name of the selected resource
+     */
     onResourceSelected(resource_id, resource_name) {
         this.dispatchEvent('resource_selected', { resource_id, resource_name });
     }
 }
 
 // ===== RESOURCE CARD CLASS (Data Model) =====
+// Pure data model representing a bookable resource and its current reservations
+// Follows Model-View pattern: this class holds data, ResourceView handles DOM
 class ResourceCard {
+    // Static configuration shared by all resource cards
+    // Links to global GUI_CONFIG for consistent styling
     static config = {
-        resource_width: 200,
-        resource_height: 400,
-        resource_gap: 20,
-        resource_list_side_gap: 6,
-        resource_list_top_gap: 50,
+        resource_width: GUI_CONFIG['resource-card-width'],    // Card width in pixels
+        resource_height: GUI_CONFIG['resource-card-height'],  // Card height in pixels
+        resource_gap: 20,                                     // Space between cards
+        resource_list_side_gap: 6,                           // Left/right padding inside card
+        resource_list_top_gap: 50,                           // Space reserved for title area
     };
 
-    constructor(id, name, list_font_size = 20) {
-        this.id = id;
-        this.name = name;
-        this.list_font_size = list_font_size;
-        this.users = [];
-        this.view = null;
+    /**
+     * Creates a new resource card data model
+     * @param {number} id - Unique resource identifier from database
+     * @param {string} name - Display name of the resource
+     * @param {number} list_font_size - Font size for user names in this resource
+     */
+    constructor(id, name, list_font_size = GUI_CONFIG['resource-card-list-font-size']) {
+        this.id = id;                           // Database ID
+        this.name = name;                       // Resource name (e.g., "Meeting Room A")
+        this.list_font_size = list_font_size;   // Customizable font size for user list
+        this.users = [];                        // Array of users who have reservations
+        this.view = null;                       // Reference to ResourceView (set later)
     }
 
+    /**
+     * Links this data model to its visual representation
+     * Enables two-way communication between model and view
+     * @param {ResourceView} view - The DOM view component for this resource
+     */
     setView(view) {
         this.view = view;
     }
 
+    /**
+     * Adds a user reservation to this resource
+     * Updates both the data model and the visual representation
+     * @param {string} name - User's display name
+     * @param {number} id - User's database ID
+     * @param {string} status - Reservation status ('approved', 'requested', etc.)
+     * @param {string} request_date - When the reservation was requested
+     * @param {string} approved_date - When the reservation was approved (if applicable)
+     */
     addUser(name, id, status, request_date, approved_date) {
         const user = { name, id, status, request_date, approved_date };
-        this.users.push(user);
-        this.view?.addUser(user, this.list_font_size);
-        this.view?.updateBackgroundColor();
+        this.users.push(user);                          // Add to data model
+        this.view?.addUser(user, this.list_font_size);  // Update visual representation
+        this.view?.updateBackgroundColor();             // Change card color based on occupancy
     }
 
+    /**
+     * Removes a user reservation from this resource
+     * Updates both the data model and the visual representation
+     * @param {number} id - User ID to remove
+     */
     removeUser(id) {
-        this.users = this.users.filter(user => user.id !== id);
-        this.view?.removeUser(id);
-        this.view?.updateBackgroundColor();
+        this.users = this.users.filter(user => user.id !== id);  // Remove from data model
+        this.view?.removeUser(id);                               // Remove from visual representation
+        this.view?.updateBackgroundColor();                      // Update card color
     }
 
+    /**
+     * Handles when a user within this resource is clicked
+     * Currently just a placeholder - the view handles the actual event delegation
+     * @param {number} user_id - ID of the clicked user
+     * @param {string} user_name - Name of the clicked user
+     */
     onUserSelected(user_id, user_name) {
         // Resource doesn't know about ResourcePool - view handles event delegation
-        //console.log(`User selected - Resource: ${this.name} (${this.id}), User: ${user_name} (${user_id})`);
+        // This separation keeps the data model independent of the UI framework
     }
 }
 
 // ===== RESOURCE VIEW (DOM Management) =====
+// Handles all DOM manipulation and visual representation for a ResourceCard
+// Follows Model-View pattern: this class manages UI, ResourceCard holds data
 class ResourceView {
+    /**
+     * Creates the visual representation of a resource card
+     * @param {ResourceCard} resource_card - The data model this view represents
+     * @param {jQuery} container - Parent DOM element to append this view to
+     * @param {ResourcePool} pool - Reference to the pool for event delegation
+     */
     constructor(resource_card, container, pool) {
-        this.resource_card = resource_card;
-        this.container = container;
-        this.pool = pool;
-        this.element = this.createElement();
-        this.updateBackgroundColor();
-        this.container.append(this.element);
+        this.resource_card = resource_card;  // Link to data model
+        this.container = container;          // Parent DOM container
+        this.pool = pool;                    // Reference for event handling
+        this.element = this.createElement(); // Create the DOM structure
+        this.updateBackgroundColor();       // Set initial background color
+        this.container.append(this.element); // Add to DOM
     }
 
+    /**
+     * Creates the complete DOM structure for a resource card
+     * Builds: main card container + title + scrollable user list
+     * @returns {jQuery} The complete DOM element for this resource card
+     */
     createElement() {
         const config = ResourceCard.config;
         const id = this.resource_card.id;
 
+        // Main card container - positioned absolutely for grid layout
         const rectangle = $('<div></div>')
             .addClass('resource-card')
-            .attr('data-resource-id', id)
+            .attr('data-resource-id', id)  // For easy DOM queries
             .css({
-                position: 'absolute',
-                left: '0px',
-                top: '0px',
+                position: 'absolute',  // Enables precise positioning in grid
+                left: '0px',           // Will be updated by setPosition()
+                top: '0px',            // Will be updated by setPosition()
                 width: config.resource_width + 'px',
                 height: config.resource_height + 'px'
             })
             .click((e) => {
+                // Only trigger resource selection if user didn't click on a user item
                 if (!$(e.target).hasClass('user-item')) {
                     this.pool.onResourceSelected(id, this.resource_card.name);
                 }
             });
 
+        // Resource title - displays the resource name at the top
         const title = $('<div></div>')
             .addClass('resource-title')
             .text(this.resource_card.name)
@@ -184,23 +318,34 @@ class ResourceView {
                 left: config.resource_list_side_gap + 'px',
                 top: '10px',
                 width: (config.resource_width - (2 * config.resource_list_side_gap)) + 'px',
-                height: '15px'
+                height: 'auto',  // Allow multi-line titles
+                'font-size': GUI_CONFIG['resource-card-title-font-size'] + 'px'
             });
 
+        // User list container - scrollable area for user reservations
         this.user_list = $('<div></div>')
             .addClass('user-list')
             .css({
                 position: 'absolute',
                 left: config.resource_list_side_gap + 'px',
-                right: config.resource_list_side_gap + 'px',
+                width: (config.resource_width - (2 * config.resource_list_side_gap)) + 'px',
                 bottom: config.resource_list_side_gap + 'px',
                 height: (config.resource_height - config.resource_list_top_gap - config.resource_list_side_gap) + 'px'
             });
 
         rectangle.append(title).append(this.user_list);
+        
+        // Dynamically adjust user list height based on actual title height
+        // setTimeout ensures title is rendered before measuring
+        setTimeout(() => this.adjustUserListHeight(), 0);
+        
         return rectangle;
     }
 
+    /**
+     * Updates the card's background color based on occupancy status
+     * Green = available (no users), Orange = occupied (has users)
+     */
     updateBackgroundColor() {
         const isEmpty = this.resource_card.users.length === 0;
         const background = isEmpty ?
@@ -209,7 +354,14 @@ class ResourceView {
         this.element.css('background', background);
     }
 
+    /**
+     * Adds a user item to the visual user list
+     * Creates a colored, clickable element representing a user's reservation
+     * @param {object} user - User data (name, id, status, etc.)
+     * @param {number} fontSize - Font size for the user's name
+     */
     addUser(user, fontSize) {
+        // Color-code based on reservation status
         let backgroundColor;
         if (user.status === 'approved') {
             backgroundColor = 'linear-gradient(135deg, #FF3B30, #FF6B6B)';  // Red gradient for approved user item
@@ -219,13 +371,13 @@ class ResourceView {
             backgroundColor = 'linear-gradient(135deg, #8E8E93, #AEAEB2)';   // Gray gradient for other status user item
         }
 
-        // Check if this is the logged-in user's reservation
+        // Highlight the current logged-in user's reservations with a black border
         const currentUserId = this.getCurrentUserId();
         const isCurrentUser = currentUserId && user.id === currentUserId;
 
         const user_item = $('<div></div>')
             .addClass('user-item')
-            .attr('data-user-id', user.id)
+            .attr('data-user-id', user.id)  // For easy removal later
             .text(user.name)
             .css({
                 'font-size': fontSize + 'px',
@@ -233,6 +385,7 @@ class ResourceView {
                 'border': isCurrentUser ? '2px solid #000000' : 'none'  // Black border frame for logged-in user
             })
             .click(() => {
+                // Handle user click - notify both the resource and the pool
                 this.resource_card.onUserSelected(user.id, user.name);
                 this.pool.dispatchEvent('user_selected', {
                     resource_id: this.resource_card.id,
@@ -244,10 +397,20 @@ class ResourceView {
         this.user_list.append(user_item);
     }
 
+    /**
+     * Removes a user item from the visual user list
+     * @param {number} id - User ID to remove
+     */
     removeUser(id) {
         this.user_list.find(`[data-user-id="${id}"]`).remove();
     }
 
+    /**
+     * Updates the absolute position of this resource card in the grid
+     * Called by ResourcePool.updateLayout() when repositioning cards
+     * @param {number} x - X coordinate in pixels
+     * @param {number} y - Y coordinate in pixels
+     */
     setPosition(x, y) {
         this.element.css({
             left: x + 'px',
@@ -255,10 +418,39 @@ class ResourceView {
         });
     }
 
+    /**
+     * Gets the current logged-in user's ID from the session manager
+     * Used to highlight the user's own reservations
+     * @returns {number|null} Current user ID or null if not logged in
+     */
     getCurrentUserId() {
         return SessionManager.getCurrentUserId();
     }
 
+    /**
+     * Dynamically adjusts the user list height based on the actual title height
+     * This handles multi-line titles by measuring the rendered title and adjusting accordingly
+     * Called after the title is rendered to ensure accurate measurements
+     */
+    adjustUserListHeight() {
+        const config = ResourceCard.config;
+        const title = this.element.find('.resource-title');
+        const actualTitleHeight = title.outerHeight();  // Get actual rendered height
+        const titleTop = 10;                            // Title's top position
+        const newUserListTop = titleTop + actualTitleHeight + 5;  // 5px gap between title and list
+        const newUserListHeight = config.resource_height - newUserListTop - config.resource_list_side_gap;
+        
+        // Update the user list position and height
+        this.user_list.css({
+            top: newUserListTop + 'px',
+            height: newUserListHeight + 'px'
+        });
+    }
+
+    /**
+     * Removes this view from the DOM and cleans up resources
+     * Called when the resource is removed or the pool is cleared
+     */
     destroy() {
         this.element.remove();
     }

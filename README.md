@@ -557,7 +557,7 @@ Expected response (logged out):
 - **Event System**: Separate event handlers for resource selection and user selection
 
 ### User Interface Components
-- **Resource Rectangles**: 200x400px containers with titles and user lists
+- **Resource Rectangles**: Configurable size containers with titles and user lists (default 250x400px)
 - **User List Items**: Scrollable containers with customizable font sizes (default 20px)
 - **Apple Design System**: Blue gradient themes and glass effects
 - **Responsive Layout**: Centered grid with proper spacing and gaps
