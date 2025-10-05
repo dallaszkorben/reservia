@@ -1,15 +1,113 @@
 # Reservia - Resource Reservation Management System
 
-A Flask-based web application for managing and administering reservation requests for public resources.
+> A modern web application for managing shared resource reservations with real-time availability tracking and queue management.
 
-## Description
-The application is designed to manage and administer reservation requests for a given public resource. It allows users to request, book, and track availability, while providing administrators with tools to oversee and coordinate the usage of that resource.
+## 🚀 Quick Start
 
-## Technology Stack
-- **Backend**: Python Flask
-- **Database**: SQLite with SQLAlchemy ORM
-- **Frontend**: HTML templates served by Flask
-- **Web Server**: Apache2
+```bash
+# Clone and setup
+git clone <repository-url>
+cd reservia
+python3 -m venv env
+source env/bin/activate
+pip install -r requirements.txt
+
+# Run the application
+python app.py
+
+# Open browser
+open http://localhost:5000
+```
+
+**Default Login**: Username: `admin`, Password: `admin`
+
+## ✨ Key Features
+
+- 🎯 **Real-time Resource Management** - Live availability tracking
+- 🔄 **Automatic Queue System** - Fair resource allocation
+- 👥 **Multi-user Support** - Admin and regular user roles
+- 🔒 **Secure Authentication** - SHA-256 password hashing
+- 📱 **Responsive Design** - Works on desktop and mobile
+- ⚡ **Auto-refresh Interface** - Real-time updates without page reload
+
+## 📋 System Requirements
+
+- **Python**: 3.8 or higher
+- **Operating System**: Linux, macOS, or Windows
+- **Browser**: Modern browser with JavaScript enabled
+- **Memory**: 512MB RAM minimum
+- **Storage**: 100MB free space
+
+## 📚 Table of Contents
+
+- [🚀 Quick Start](#-quick-start)
+- [✨ Key Features](#-key-features)
+- [📋 System Requirements](#-system-requirements)
+- [🔧 Installation & Setup](#-installation--setup)
+- [📚 API Documentation](#-api-documentation)
+- [🧪 Testing](#-testing)
+- [📁 Project Structure](#-project-structure)
+- [🔍 Troubleshooting](#-troubleshooting)
+
+## 🔧 Installation & Setup
+
+### Development Environment
+
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd reservia
+   ```
+
+2. **Create virtual environment**:
+   ```bash
+   python3 -m venv env
+   source env/bin/activate  # On Windows: env\Scripts\activate
+   ```
+
+3. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Start the server**:
+   ```bash
+   python app.py
+   ```
+
+5. **Access the application**:
+   - **Main Interface**: http://localhost:5000
+   - **Health Check**: http://localhost:5000/info/is_alive
+   - **API Version**: http://localhost:5000/info/get_version
+
+### Production Deployment
+
+> 🚧 **Coming Soon**: Apache2 configuration guide
+
+## 🎯 How It Works
+
+### For Regular Users
+1. **Login** with your credentials
+2. **Browse available resources** in the grid view
+3. **Click a resource** to request a reservation
+4. **Get instant approval** or join the queue
+5. **Release resources** when finished
+
+### For Administrators
+- **Manage users** - Create, modify, delete accounts
+- **Manage resources** - Add/remove bookable items
+- **Monitor activity** - View all reservations and queues
+- **Visual indicator** - Red header shows admin status
+
+## 🔑 Technology Stack
+
+| Component | Technology |
+|-----------|------------|
+| **Backend** | Python Flask |
+| **Database** | SQLite + SQLAlchemy ORM |
+| **Frontend** | HTML5, CSS3, JavaScript (jQuery) |
+| **Security** | SHA-256 password hashing |
+| **Testing** | Python unittest framework |
 
 ## Project Structure
 ```
@@ -234,7 +332,53 @@ Frontend testing is done through browser-based interactive testing:
 - `frontend/templates/index.html` - Includes test initialization
 - Test functions: `testSimulateUserOperations()`, `testLookOfTheResourceElements()`
 
-## Usage
+## 📚 API Documentation
+
+### 🔒 Authentication
+
+**Important**: All passwords must be SHA-256 hashed before sending to the API.
+
+#### Password Hashing Examples
+
+#### Using Python
+```python
+import hashlib
+
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+# Example usage
+plain_password = "admin"
+hashed_password = hash_password(plain_password)
+print(f"Hashed password: {hashed_password}")
+# Output: 8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
+```
+
+#### Using Node.js
+```javascript
+const crypto = require('crypto');
+
+function hashPassword(password) {
+    return crypto.createHash('sha256').update(password).digest('hex');
+}
+
+// Example usage
+const plainPassword = "admin";
+const hashedPassword = hashPassword(plainPassword);
+console.log(`Hashed password: ${hashedPassword}`);
+// Output: 8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
+```
+
+#### Using Command Line (Linux/macOS)
+```bash
+# Hash a password using echo and sha256sum
+echo -n "admin" | sha256sum | cut -d' ' -f1
+# Output: 8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
+
+# Or using openssl
+echo -n "admin" | openssl dgst -sha256 | cut -d' ' -f2
+# Output: 8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
+```
 
 ### Usage of Endpoints
 
@@ -265,7 +409,11 @@ Expected response:
 
 #### User Login (Save Session Cookie)
 ```bash
-curl -H "Content-Type: application/json" -X POST -c cookies.txt -d '{"name": "admin", "password": "admin"}' http://localhost:5000/session/login
+# Hash the password first
+HASHED_PASSWORD=$(echo -n "admin" | sha256sum | cut -d' ' -f1)
+
+# Use the hashed password in the curl request
+curl -H "Content-Type: application/json" -X POST -c cookies.txt -d "{\"name\": \"admin\", \"password\": \"$HASHED_PASSWORD\"}" http://localhost:5000/session/login
 ```
 Expected response:
 ```json
@@ -284,7 +432,11 @@ Expected response:
 
 #### Add User (Admin Only - Requires Session Cookie)
 ```bash
-curl -H "Content-Type: application/json" -X POST -b cookies.txt -d '{"name": "John Doe", "email": "john@example.com", "password": "password123"}' http://localhost:5000/admin/user/add
+# Hash the password first
+HASHED_PASSWORD=$(echo -n "secret123" | sha256sum | cut -d' ' -f1)
+
+# Use the hashed password in the curl request
+curl -H "Content-Type: application/json" -X POST -b cookies.txt -d "{\"name\": \"John Doe\", \"email\": \"john@example.com\", \"password\": \"$HASHED_PASSWORD\"}" http://localhost:5000/admin/user/add
 ```
 Expected response:
 ```json
@@ -293,7 +445,11 @@ Expected response:
 
 #### Modify User Data (Admin can modify any user, User can modify self - Requires Session Cookie)
 ```bash
-curl -H "Content-Type: application/json" -X POST -b cookies.txt -d '{"user_id": 2, "email": "newemail@example.com", "password": "newpass123"}' http://localhost:5000/admin/user/modify
+# Hash the password first
+HASHED_PASSWORD=$(echo -n "newpass123" | sha256sum | cut -d' ' -f1)
+
+# Use the hashed password in the curl request
+curl -H "Content-Type: application/json" -X POST -b cookies.txt -d "{\"user_id\": 2, \"email\": \"newemail@example.com\", \"password\": \"$HASHED_PASSWORD\"}" http://localhost:5000/admin/user/modify
 ```
 Expected response:
 ```json
@@ -411,7 +567,81 @@ Expected response (logged out):
 - **User Click**: Triggers `Resource.onUserSelected(user_id, user_name)`
 - **Proper Event Separation**: No event bubbling conflicts between resource and user clicks
 
-## Features In Development
-- Enhanced resource management
-- User dashboard and reservation history
-- Backend integration for frontend components
+## 🧪 Testing
+
+### Quick Test
+```bash
+# Run all backend tests
+source env/bin/activate
+python3 -m backend.tests.test_endpoints
+python3 -m backend.tests.test_database
+```
+
+### Frontend Testing
+1. Start the server: `python app.py`
+2. Open http://localhost:5000
+3. Use browser DevTools (F12) to monitor console
+4. Test login/logout and resource operations
+
+## 🔍 Troubleshooting
+
+### Common Issues
+
+**❌ Server won't start**
+```bash
+# Check if port 5000 is in use
+lsof -i :5000
+# Kill process if needed
+kill -9 <PID>
+```
+
+**❌ Login fails**
+- Ensure password is SHA-256 hashed
+- Check browser console for errors
+- Verify cookies are enabled
+
+**❌ Tests fail**
+- Run from project root directory: `cd reservia/`
+- Ensure virtual environment is activated
+- Check Python version: `python3 --version`
+
+### Getting Help
+
+1. Check the [Issues](link-to-issues) page
+2. Review the logs in `~/.reservia/`
+3. Enable debug mode: Set `DEBUG=True` in config
+
+## 📁 Project Structure
+
+<details>
+<summary>Click to expand detailed structure</summary>
+
+```
+reservia/
+├── backend/              # Server-side code
+│   ├── app/
+│   │   ├── views/       # API endpoints
+│   │   ├── database.py  # Data layer
+│   │   └── application.py # Main app
+│   └── tests/           # Backend tests
+├── frontend/             # Client-side code
+│   ├── static/          # CSS, JS, images
+│   └── templates/       # HTML templates
+├── app.py               # Application entry point
+├── requirements.txt     # Python dependencies
+└── README.md           # This documentation
+```
+
+</details>
+
+## 🚀 What's Next
+
+- [ ] Apache2 production deployment guide
+- [ ] User dashboard with reservation history
+- [ ] Email notifications for queue updates
+- [ ] Resource categories and filtering
+- [ ] Mobile app development
+
+---
+
+**Made with ❤️ using Python Flask** | [Report Issues](link-to-issues) | [Contribute](link-to-contributing)

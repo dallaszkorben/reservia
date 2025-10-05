@@ -18,6 +18,7 @@ body {
     margin-bottom: 25px;
     box-shadow: 0 10px 40px rgba(0,122,255,0.2); /* Blue-tinted shadow */
     border: 1px solid rgba(255,255,255,0.3); /* Subtle white border */
+    text-align: left; /* Button alignment */
 }
 
 /* ===== ADMIN WARNING ===== */
@@ -131,7 +132,7 @@ h1 {
 /* ===== USER LIST CONTAINER ===== */
 .user-list {
     overflow-y: auto;
-/*    background: rgba(255,255,255,0.1); /* Semi-transparent white background for user list container */
+    /* background: rgba(255,255,255,0.1); Semi-transparent white background for user list container */
     background: rgba(0,0,0,0.1); /* Semi-transparent black background for user list container */
     border-radius: 8px;
     padding: 5px;
