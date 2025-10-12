@@ -18,7 +18,8 @@ function loadUsersForResource(resourceCard) {
                     reservation.user_id,
                     reservation.status,        // 'approved' or 'requested'
                     reservation.request_date,
-                    reservation.approved_date
+                    reservation.approved_date,
+                    reservation.valid_until_date
                 );
             });
         },
@@ -30,16 +31,16 @@ function loadUsersForResource(resourceCard) {
 
 /**
  * Compares two user lists to check if they are identical
- * users1: Current users in ResourceCard (format: {id, status, ...})
- * users2: Users from server response (format: {user_id, status, ...})
+ * users1: Current users in ResourceCard (format: {id, status, valid_until_date, ...})
+ * users2: Users from server response (format: {user_id, status, valid_until_date, ...})
  */
 function usersEqual(users1, users2) {
     // Quick check: different lengths means different lists
     if (users1.length !== users2.length) return false;
 
-    // Check if every user in list1 has a matching user in list2 (by ID and status)
+    // Check if every user in list1 has a matching user in list2 (by ID, status, and valid_until_date)
     return users1.every(u1 =>
-        users2.some(u2 => u1.id === u2.user_id && u1.status === u2.status)
+        users2.some(u2 => u1.id === u2.user_id && u1.status === u2.status && u1.valid_until_date === u2.valid_until_date)
     );
 }
 
@@ -87,7 +88,8 @@ function refreshResourcesFromServer() {
                                         reservation.user_id,
                                         reservation.status,
                                         reservation.request_date,
-                                        reservation.approved_date
+                                        reservation.approved_date,
+                                        reservation.valid_until_date
                                     );
                                 });
 
@@ -166,51 +168,26 @@ function setupResourceEventListeners() {
         });
     });
 
-    // Listen for user selection events (when user clicks on a user in the list)
-    pool.addEventListener('user_selected', (data) => {
-        console.log(`User clicked on user: ${data.user_name} (${data.user_id}) in resource: ${data.resource_name} (${data.resource_id})`);
 
-        // Step 1: Get current logged-in user ID
-        const currentUserId = getCurrentUserId();
-        if (!currentUserId) {
-            console.error('No user logged in - cannot perform user operations');
+
+    // Listen for user action events (from hover buttons)
+    pool.addEventListener('user_action', (data) => {
+        console.log(`User action: ${data.action} for user ${data.user_name} (${data.user_id}) on resource ${data.resource_name} (${data.resource_id})`);
+
+        // Map actions to endpoints
+        const actionMap = {
+            'release': '/reservation/release',
+            'cancel': '/reservation/cancel',
+            'keep_alive': '/reservation/keep_alive'
+        };
+
+        const endpoint = actionMap[data.action];
+        if (!endpoint) {
+            console.error(`Unknown action: ${data.action}`);
             return;
         }
 
-        // Step 2: Check if clicked user matches current logged-in user
-        if (data.user_id !== currentUserId) {
-            console.log(`Clicked user (${data.user_id}) is not the current user (${currentUserId}) - ignoring click`);
-            return;
-        }
-
-        // Step 3: Find the resource and user to determine the action
-        const resource = pool.resources.find(r => r.id === data.resource_id);
-        if (!resource) {
-            console.error(`Resource ${data.resource_id} not found`);
-            return;
-        }
-
-        const user = resource.users.find(u => u.id === data.user_id);
-        if (!user) {
-            console.error(`User ${data.user_id} not found in resource ${data.resource_id}`);
-            return;
-        }
-
-        // Step 4: Determine action based on user status
-        let endpoint, action;
-        if (user.status === 'approved') {
-            // User has approved reservation - release it
-            endpoint = '/reservation/release';
-            action = 'release';
-        } else {
-            // User has requested reservation (or other status) - cancel it
-            endpoint = '/reservation/cancel';
-            action = 'cancel';
-        }
-
-        console.log(`Attempting to ${action} reservation for user ${data.user_name} (${data.user_id}) on resource ${data.resource_name} (${data.resource_id})`);
-
-        // Step 5: Send the appropriate API request
+        // Send API request
         $.ajax({
             url: endpoint,
             method: 'POST',
@@ -219,20 +196,11 @@ function setupResourceEventListeners() {
                 resource_id: data.resource_id
             }),
             success: function(response) {
-                // Step 6: Log successful operation
-                console.log(`${action.toUpperCase()} successful for user ${data.user_name} on resource ${data.resource_name}:`, response);
-
-                // Step 7: Trigger immediate refresh to show updated state
-                console.log(`Triggering immediate refresh after ${action}...`);
+                console.log(`${data.action.toUpperCase()} successful:`, response);
                 refreshResourcesFromServer();
             },
             error: function(xhr, status, error) {
-                // Step 6: Log operation errors to console
-                console.error(`${action.toUpperCase()} failed for user ${data.user_name} (${data.user_id}) on resource ${data.resource_name} (${data.resource_id}):`);
-                console.error('Status:', xhr.status);
-                console.error('Error:', error);
-
-                // Try to parse and log the error response
+                console.error(`${data.action.toUpperCase()} failed:`, xhr.status, error);
                 try {
                     const errorResponse = JSON.parse(xhr.responseText);
                     console.error('Server response:', errorResponse);
@@ -244,33 +212,57 @@ function setupResourceEventListeners() {
     });
 }
 
-// Global variable to store the auto-refresh interval ID
+// Global variables for auto-refresh system
 let autoRefreshInterval = null;
+let timeUpdateInterval = null;
 
 /**
- * Starts the auto-refresh system for logged-in users
- * Called when user successfully logs in
+ * Updates only the remaining time displays for approved reservations
+ * Called every second to refresh countdown timers
  */
-function startAutoRefresh() {
-    // Clear any existing interval to prevent duplicates
-    if (autoRefreshInterval) {
-        clearInterval(autoRefreshInterval);
-    }
-
-    // Start auto-refresh system
-    autoRefreshInterval = setInterval(refreshResourcesFromServer, GUI_CONFIG['auto-refresh-interval']);
-    console.log('Auto-refresh started for logged-in user');
+function updateRemainingTimesOnly() {
+    const pool = ResourcePool.getInstance();
+    pool.resources.forEach(resourceCard => {
+        resourceCard.view?.updateRemainingTimes();
+    });
 }
 
 /**
- * Stops the auto-refresh system for logged-out users
+ * Starts both server refresh and time update intervals for logged-in users
+ * Called when user successfully logs in
+ */
+function startRefreshTimers() {
+    // Clear any existing intervals to prevent duplicates
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+    if (timeUpdateInterval) {
+        clearInterval(timeUpdateInterval);
+    }
+
+    // Start 5-second server refresh (from config)
+    autoRefreshInterval = setInterval(refreshResourcesFromServer, GUI_CONFIG['auto-refresh-interval']);
+    console.log('Auto-refresh started for logged-in user (5 second interval)');
+
+    // Start 1-second time update (hardcoded)
+    timeUpdateInterval = setInterval(updateRemainingTimesOnly, 1000);
+    console.log('Time update started for logged-in user (1 second interval)');
+}
+
+/**
+ * Stops both server refresh and time update intervals for logged-out users
  * Called when user logs out
  */
-function stopAutoRefresh() {
+function stopRefreshTimers() {
     if (autoRefreshInterval) {
         clearInterval(autoRefreshInterval);
         autoRefreshInterval = null;
         console.log('Auto-refresh stopped for logged-out user');
+    }
+    if (timeUpdateInterval) {
+        clearInterval(timeUpdateInterval);
+        timeUpdateInterval = null;
+        console.log('Time update stopped for logged-out user');
     }
 }
 

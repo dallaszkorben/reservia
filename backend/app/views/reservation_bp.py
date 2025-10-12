@@ -4,6 +4,7 @@ from .base_view import BaseView
 from ..constants import LOG_PREFIX_ENDPOINT
 from ..database import Database
 from ..utils import epoch_to_iso8601
+from ...config.config import CONFIG
 
 class RequestReservationView(BaseView):
     """Handles POST requests for creating new reservation requests.
@@ -74,6 +75,12 @@ class CancelReservationView(BaseView):
         logging.info(f"{LOG_PREFIX_ENDPOINT}/reservation/cancel endpoint accessed")
 
         try:
+            # Check authentication at endpoint level
+            db = Database.get_instance()
+            current_user = db.get_current_user()
+            if not current_user:
+                return jsonify({"error": "Authentication required"}), 401
+
             data = request.get_json()
             if not data:
                 return jsonify({"error": "JSON data required"}), 400
@@ -82,8 +89,8 @@ class CancelReservationView(BaseView):
             if not resource_id:
                 return jsonify({"error": "resource_id is required"}), 400
 
-            db = Database.get_instance()
-            success, reservation, error_code, error_msg = db.cancel_reservation(resource_id)
+            user_id = current_user['user_id']
+            success, reservation, error_code, error_msg = db.cancel_reservation(resource_id, user_id)
 
             if success:
                 return jsonify({
@@ -93,9 +100,7 @@ class CancelReservationView(BaseView):
                     "cancelled_date": epoch_to_iso8601(reservation.cancelled_date)
                 }), 200
             else:
-                if error_code == "AUTH_REQUIRED":
-                    return jsonify({"error": error_msg}), 401
-                elif error_code == "RESERVATION_NOT_FOUND":
+                if error_code == "RESERVATION_NOT_FOUND":
                     return jsonify({"error": error_msg}), 404
                 return jsonify({"error": error_msg}), 400
 
@@ -124,6 +129,12 @@ class ReleaseReservationView(BaseView):
         logging.info(f"{LOG_PREFIX_ENDPOINT}/reservation/release endpoint accessed")
 
         try:
+            # Check authentication at endpoint level
+            db = Database.get_instance()
+            current_user = db.get_current_user()
+            if not current_user:
+                return jsonify({"error": "Authentication required"}), 401
+
             data = request.get_json()
             if not data:
                 return jsonify({"error": "JSON data required"}), 400
@@ -132,8 +143,8 @@ class ReleaseReservationView(BaseView):
             if not resource_id:
                 return jsonify({"error": "resource_id is required"}), 400
 
-            db = Database.get_instance()
-            success, reservation, error_code, error_msg = db.release_reservation(resource_id)
+            user_id = current_user['user_id']
+            success, reservation, error_code, error_msg = db.release_reservation(resource_id, user_id)
 
             if success:
                 return jsonify({
@@ -143,14 +154,65 @@ class ReleaseReservationView(BaseView):
                     "released_date": epoch_to_iso8601(reservation.released_date)
                 }), 200
             else:
-                if error_code == "AUTH_REQUIRED":
-                    return jsonify({"error": error_msg}), 401
-                elif error_code == "RESERVATION_NOT_FOUND":
+                if error_code == "RESERVATION_NOT_FOUND":
                     return jsonify({"error": error_msg}), 404
                 return jsonify({"error": error_msg}), 400
 
         except Exception as e:
             logging.error(f"{LOG_PREFIX_ENDPOINT}Error in release_reservation: {str(e)}")
+            return jsonify({"error": "Internal server error"}), 500
+
+
+class KeepAliveReservationView(BaseView):
+    """Handles POST requests for keeping alive approved reservations.
+
+    Requires user authentication. Updates the valid_until_date for the user's
+    approved reservation by adding approved_keep_alive_sec to current time.
+
+    Returns:
+        tuple: JSON response with keep alive details and HTTP status code
+
+    Example:
+        curl -H "Content-Type: application/json" -X POST -b cookies.txt \
+             -d '{"resource_id": 1}' \
+             http://localhost:5000/reservation/keep_alive
+    """
+    def post(self):
+        logging.info(f"{LOG_PREFIX_ENDPOINT}/reservation/keep_alive endpoint accessed")
+
+        try:
+            # Check authentication at endpoint level
+            db = Database.get_instance()
+            current_user = db.get_current_user()
+            if not current_user:
+                return jsonify({"error": "Authentication required"}), 401
+
+            data = request.get_json()
+            if not data:
+                return jsonify({"error": "JSON data required"}), 400
+
+            resource_id = data.get('resource_id')
+            if not resource_id:
+                return jsonify({"error": "resource_id is required"}), 400
+
+            user_id = current_user['user_id']
+            keep_alive_seconds = CONFIG['approved_keep_alive_sec']
+            success, reservation, error_code, error_msg = db.keep_alive_reservation(resource_id, user_id, keep_alive_seconds)
+
+            if success:
+                return jsonify({
+                    "message": "Reservation kept alive successfully",
+                    "reservation_id": reservation.id,
+                    "resource_id": reservation.resource_id,
+                    "valid_until_date": epoch_to_iso8601(reservation.valid_until_date)
+                }), 200
+            else:
+                if error_code == "RESERVATION_NOT_FOUND":
+                    return jsonify({"error": error_msg}), 404
+                return jsonify({"error": error_msg}), 400
+
+        except Exception as e:
+            logging.error(f"{LOG_PREFIX_ENDPOINT}Error in keep_alive_reservation: {str(e)}")
             return jsonify({"error": "Internal server error"}), 500
 
 
@@ -203,6 +265,7 @@ class GetActiveReservationsView(BaseView):
                     "resource_name": r.resource.name,
                     "request_date": epoch_to_iso8601(r.request_date),
                     "approved_date": epoch_to_iso8601(r.approved_date) if r.approved_date else None,
+                    "valid_until_date": r.valid_until_date,
                     "status": "approved" if r.approved_date else "requested"
                 })
 
@@ -227,6 +290,7 @@ class ReservationBlueprintManager:
         self.blueprint.add_url_rule('/active', view_func=GetActiveReservationsView.as_view('active'))
         self.blueprint.add_url_rule('/cancel', view_func=CancelReservationView.as_view('cancel'))
         self.blueprint.add_url_rule('/release', view_func=ReleaseReservationView.as_view('release'))
+        self.blueprint.add_url_rule('/keep_alive', view_func=KeepAliveReservationView.as_view('keep_alive'))
 
     def get_blueprint(self):
         return self.blueprint

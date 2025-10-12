@@ -316,10 +316,42 @@ h1 {
     cursor: pointer;
     transition: all 0.2s ease;
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .user-item:hover {
     background: rgba(255,255,255,0.3);
+}
+
+/* User name styling */
+.user-name {
+    font-weight: 600;
+}
+
+/* Countdown timer styling */
+.user-countdown {
+    font-weight: 400;
+    opacity: 0.9;
+}
+
+/* Hover action buttons */
+.user-actions {
+    background: transparent;
+    border-radius: 4px;
+    padding: 2px 4px;
+}
+
+.action-btn {
+    display: inline-block;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: background-color 0.2s ease;
+}
+
+.action-btn:hover {
+    background: rgba(255,255,255,0.2);
 }
 
 /* ===== SCROLLBAR STYLING ===== */

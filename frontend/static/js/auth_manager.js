@@ -92,7 +92,7 @@ class AuthManager {
         });
         
         loadResourcesFromServer();
-        startAutoRefresh();
+        startRefreshTimers();
     }
     
     static showLoggedOutUI() {
@@ -113,7 +113,7 @@ class AuthManager {
             DialogManager.hideDialog(id);
         });
         
-        stopAutoRefresh();
+        stopRefreshTimers();
         clearResourcesOnLogout();
     }
     

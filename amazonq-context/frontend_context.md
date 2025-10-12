@@ -137,7 +137,34 @@ pool.updateLayout();
 
 ## Recent Updates
 
-### User List Layout Fix (Latest)
+### Hover Action Interface (Latest)
+**Features**: Icon-based user actions with improved UX
+- **Hover Actions**: ❌ (Release/Cancel) and ⏰ (Keep Alive) icons appear on hover
+- **User Restrictions**: Only logged-in user sees action buttons on their own reservations
+- **Multi-line Layout**: User name and countdown timer on separate lines (40px height vs 25px)
+- **Transparent Icons**: Action buttons with transparent backgrounds for subtle appearance
+- **Disabled Simple Clicks**: Users must use hover icons, no accidental actions from regular clicks
+
+**Implementation Details**:
+- `handleUserAction()`: Processes icon-based actions with `user_action` events
+- Dynamic height adjustment: 25px (standard) vs 40px (with countdown)
+- Removed `user_selected` event handler for simplified interaction model
+- CSS flexbox layout for proper vertical alignment of name and countdown
+
+### Reservation Expiration & Keep-Alive System
+**Features**: Real-time countdown and keep-alive functionality
+- **Live Countdown Display**: Shows remaining time in HH:MM:SS format for approved reservations
+- **Dual-Timer System**: 5-second server sync + 1-second UI countdown updates
+- **Keep-Alive Integration**: ⏰ icon to extend reservation validity
+- **Time Formatting**: `convertToHHMMSS()` helper for consistent time display
+- **Refresh Optimization**: Separate timers prevent visual "jumps" in countdown
+
+**Implementation Details**:
+- `updateRemainingTimes()`: Updates countdown displays in separate DOM elements
+- `usersEqual()`: Compares `valid_until_date` to detect keep-alive changes
+- Dual timer management: `autoRefreshInterval` (5s) + `timeUpdateInterval` (1s)
+
+### User List Layout Fix
 **Issue**: Inconsistent spacing in resource card user lists - 10px gap on left, no gap on right
 **Root Cause**: CSS `.user-list` class had `padding: 5px` conflicting with JavaScript positioning
 **Solution**: Removed CSS padding, letting JavaScript `resource_list_side_gap: 6` control all spacing

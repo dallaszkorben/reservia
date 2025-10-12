@@ -79,6 +79,24 @@ reservia/
 - Proper authorization checks (admin-only vs self-modification)
 - Comprehensive test coverage for all modification endpoints
 
+✅ **Phase 6 Complete**: Reservation Expiration & Keep-Alive System
+- Database schema enhancement: `valid_until_date` field in reservation_lifecycle table
+- Centralized configuration system with `approved_keep_alive_sec` (600s default)
+- `/reservation/keep_alive` endpoint for extending approved reservations
+- Automatic reservation expiration with background thread monitoring
+- Application-level thread management (moved from Database to ReserviaApp class)
+- Real-time countdown display in frontend with dual-timer system
+- Authentication refactoring: moved from database to endpoint level
+- Comprehensive test coverage for keep-alive functionality
+
+✅ **Phase 7 Complete**: Hover Action Interface
+- Icon-based user actions: ❌ (Release/Cancel) and ⏰ (Keep Alive)
+- Multi-line user item layout: name and countdown on separate lines
+- Hover-only action visibility for logged-in user's reservations
+- Disabled simple click actions to prevent accidental operations
+- Transparent action button backgrounds for subtle UI integration
+- Enhanced user experience with intentional action requirements
+
 ## Implemented Features
 - `/info/is_alive` - Health check endpoint
 - `/info/get_version` - Version information endpoint
@@ -94,6 +112,7 @@ reservia/
 - `/reservation/active` - Get all active reservations
 - `/reservation/cancel` - Cancel user's reservation request
 - `/reservation/release` - Release approved reservation
+- `/reservation/keep_alive` - Extend approved reservation validity
 - Database singleton with ORM protection against SQL injection
 - Secure password hashing and validation
 - Flask session management with proper logout handling
@@ -101,6 +120,10 @@ reservia/
 - Configuration-driven logging levels and file management
 - Reservation queue system with automatic resource management
 - Structured error handling with specific HTTP status codes
+- Automatic reservation expiration system with configurable timeouts
+- Background thread monitoring for expired reservations
+- Keep-alive functionality for extending reservation validity
+- Application-level thread management with proper shutdown handling
 
 ## Next Steps
 - Frontend templates and forms

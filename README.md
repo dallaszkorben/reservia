@@ -32,9 +32,15 @@ open http://localhost:5000
 
 ## 📸 Main Interface
 
-![Main User Screen](docs/images/main_user_screen.jpg)
+### User Interface with Hover Actions
+![User Screen with Keep Alive and Release Menu](docs/images/main_user_screen_with_keep_alive_and_release_menu.jpg)
 
-*The main Reservia interface showing the resource grid with real-time availability tracking and user management.*
+*User interface showing the hover action system with ❌ (Release/Cancel) and ⏰ (Keep Alive) icons, multi-line countdown display, and real-time reservation management.*
+
+### Admin Interface with Management Menu
+![Admin Screen with Management Menu](docs/images/main_admin_screen_with_menu.jpg)
+
+*Admin interface displaying the management dropdown menus for user and resource administration, with admin header indicator.*
 
 ## 📋 System Requirements
 
@@ -114,6 +120,28 @@ open http://localhost:5000
 | **Frontend** | HTML5, CSS3, JavaScript (jQuery) |
 | **Security** | SHA-256 password hashing |
 | **Testing** | Python unittest framework |
+
+## ⚙️ Configuration
+
+### Backend Configuration
+
+The system uses centralized configuration in `backend/config/config.py`:
+
+```python
+CONFIG = {
+    'approved_keep_alive_sec': 600,  # Default 10 minutes (600 seconds)
+    'expiration_check_interval_sec': 1  # Check for expired reservations every 1 second
+}
+```
+
+### Key Settings
+
+- **`approved_keep_alive_sec`**: Duration (in seconds) that approved reservations remain valid before automatic expiration
+- **`expiration_check_interval_sec`**: Frequency (in seconds) for background thread to check for expired reservations
+
+### Frontend Configuration
+
+Frontend settings are available in `frontend/static/js/config.js` for client-side access to configuration values.
 
 ## Project Structure
 ```
@@ -210,6 +238,27 @@ python app.py
 - `approved_date` (INTEGER, NULL) - Unix timestamp
 - `cancelled_date` (INTEGER, NULL) - Unix timestamp
 - `released_date` (INTEGER, NULL) - Unix timestamp
+- `valid_until_date` (INTEGER, NOT NULL) - Unix timestamp for reservation expiration
+
+## ⏰ Reservation Expiration System
+
+### Automatic Expiration
+- **Approved reservations** automatically expire after configurable timeout (default: 10 minutes)
+- **Background monitoring** checks for expired reservations every second
+- **Auto-approval** of next queued user when reservation expires
+- **Thread-safe operations** ensure data consistency
+
+### Keep-Alive Functionality
+- **Extend validity** by clicking on approved reservations in the UI
+- **REST endpoint** `/reservation/keep_alive` for programmatic access
+- **Configurable duration** extends reservation by the same timeout period
+- **Real-time updates** reflect new expiration time immediately
+
+### Architecture Benefits
+- **Application-level management**: Expiration thread managed by ReserviaApp class
+- **Clean separation**: Database class focuses on data operations only
+- **Proper shutdown**: Thread cleanup on application termination
+- **Scalable design**: Easy to modify timeout values and check intervals
 
 ## Current Features
 
@@ -230,6 +279,7 @@ python app.py
 - **GET /reservation/active** - Get all active reservations (requires user login)
 - **POST /reservation/cancel** - Cancel user's reservation (requires user login)
 - **POST /reservation/release** - Release approved reservation (requires user login)
+- **POST /reservation/keep_alive** - Extend approved reservation validity (requires user login)
 
 ### Database Management
 - SQLite database with SQLAlchemy ORM
@@ -254,6 +304,8 @@ python app.py
 - Reservation queue system with auto-approval logic
 - Thread-safe database operations with locking
 - Google Style documentation standards
+- Automatic reservation expiration with background monitoring
+- Configurable keep-alive system for approved reservations
 
 ### Frontend Architecture
 - **LayoutManager**: Static utility class for responsive grid positioning calculations
@@ -263,6 +315,8 @@ python app.py
 - Clean separation between data models and view components
 - Independent Resource class with static configuration
 - Dependency injection for view components
+- Real-time countdown timers for reservation expiration
+- Dual-timer system: 5-second server sync + 1-second UI updates
 
 ## Testing
 
@@ -580,6 +634,15 @@ Expected response:
 {"message": "Reservation released successfully", "reservation_id": 1, "resource_id": 1, "released_date": "2023-12-21T11:00:15+01:00"}
 ```
 
+#### Keep Alive Reservation (User Login Required)
+```bash
+curl -H "Content-Type: application/json" -X POST -b cookies.txt -d '{"resource_id": 1}' http://localhost:5000/reservation/keep_alive
+```
+Expected response:
+```json
+{"message": "Reservation kept alive successfully", "reservation_id": 1, "resource_id": 1, "valid_until_date": "2023-12-21T11:10:15+01:00"}
+```
+
 #### Check Session Status (Use Session Cookie)
 ```bash
 curl -b cookies.txt http://localhost:5000/session/status
@@ -607,6 +670,8 @@ Expected response (logged out):
 - First user gets auto-approved if resource is available
 - Subsequent users are queued (request_date set, approved_date null)
 - When approved user releases resource, next queued user is auto-approved
+- Automatic expiration of approved reservations after configurable timeout
+- Keep-alive functionality to extend reservation validity
 
 ### Resource Status Logic
 - **Available**: No active reservations or last reservation has released_date
@@ -621,21 +686,27 @@ Expected response (logged out):
 ### Frontend Features
 - **Responsive Resource Grid**: Automatic layout calculation based on screen width
 - **Scrollable User Lists**: Apple-styled blue scrollbars with overflow handling
-- **Interactive Resource Management**: Click handling for both resources and individual users
+- **Interactive Resource Management**: Click handling for resources and hover actions for user operations
 - **Customizable Font Sizes**: Per-resource user list font size configuration
 - **Real-time Layout Updates**: Window resize support with automatic repositioning
-- **Event System**: Separate event handlers for resource selection and user selection
+- **Event System**: Separate event handlers for resource selection and user actions
+- **Live Countdown Display**: Real-time remaining time in HH:MM:SS format on separate line
+- **Hover Action Interface**: Icon-based actions (❌ Release/Cancel, ⏰ Keep Alive) for logged-in user's reservations
+- **Multi-line User Items**: User name and countdown timer displayed on separate lines for better readability
 
 ### User Interface Components
 - **Resource Rectangles**: Configurable size containers with titles and user lists (default 250x400px)
-- **User List Items**: Scrollable containers with customizable font sizes (default 20px)
+- **User List Items**: Scrollable containers with customizable font sizes and dynamic heights (25px standard, 40px with countdown)
+- **Hover Action Buttons**: Transparent background icons that appear on hover for logged-in user's reservations
 - **Apple Design System**: Blue gradient themes and glass effects
 - **Responsive Layout**: Centered grid with proper spacing and gaps
 
 ### Event Handling
-- **Resource Click**: Triggers `ResourcePool.onResourceSelected(resource_id)`
-- **User Click**: Triggers `Resource.onUserSelected(user_id, user_name)`
-- **Proper Event Separation**: No event bubbling conflicts between resource and user clicks
+- **Resource Click**: Triggers `ResourcePool.onResourceSelected(resource_id)` for reservation requests
+- **Hover Actions**: Icon-based actions trigger `user_action` events with specific action types
+- **Action Types**: `release` (❌), `cancel` (❌), `keep_alive` (⏰)
+- **User Restrictions**: Only logged-in user can see and use action buttons on their own reservations
+- **Proper Event Separation**: No conflicts between resource clicks and hover action buttons
 
 ## 🧪 Testing
 

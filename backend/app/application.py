@@ -2,6 +2,8 @@ import os
 import logging
 import logging.handlers
 import hashlib
+import threading
+import time
 from pathlib import Path
 from flask import Flask
 from .views.info_bp import InfoBlueprintManager
@@ -11,6 +13,7 @@ from .views.session_bp import SessionBlueprintManager
 from .views.reservation_bp import ReservationBlueprintManager
 from .database import Database
 from datetime import datetime, timedelta
+from ..config.config import CONFIG
 
 class ReserviaApp(Flask):
     """Main application class for Reservia"""
@@ -44,7 +47,12 @@ class ReserviaApp(Flask):
         # print(current_app.config['APP_CONFIG'])
         self.app.config['APP_CONFIG'] = self.config_dict
 
+        # Expiration thread management
+        self.expiration_thread = None
+        self.stop_expiration_thread = False
+
         self._register_blueprints()
+        self._start_expiration_thread()
 
         return None
 
@@ -86,3 +94,37 @@ class ReserviaApp(Flask):
         self.app.register_blueprint(admin_manager.get_blueprint())
         self.app.register_blueprint(session_manager.get_blueprint())
         self.app.register_blueprint(reservation_manager.get_blueprint())
+
+    def _start_expiration_thread(self):
+        """Start the background thread that checks for expired reservations."""
+        if self.expiration_thread is None or not self.expiration_thread.is_alive():
+            self.stop_expiration_thread = False
+            self.expiration_thread = threading.Thread(target=self._expiration_worker, daemon=True)
+            self.expiration_thread.start()
+            logging.info("ReserviaApp: Expiration thread started")
+
+    def _stop_expiration_thread(self):
+        """Stop the background expiration thread."""
+        self.stop_expiration_thread = True
+        if self.expiration_thread and self.expiration_thread.is_alive():
+            self.expiration_thread.join(timeout=2)
+            logging.info("ReserviaApp: Expiration thread stopped")
+
+    def _expiration_worker(self):
+        """Background worker that checks for expired approved reservations."""
+        interval = CONFIG['expiration_check_interval_sec']
+        logging.info(f"ReserviaApp: Expiration worker started with {interval}s interval")
+        
+        while not self.stop_expiration_thread:
+            try:
+                self.database.check_expired_reservations()
+            except Exception as e:
+                logging.error(f"ReserviaApp: Error in expiration worker: {str(e)}")
+            
+            time.sleep(interval)
+        
+        logging.info("ReserviaApp: Expiration worker stopped")
+
+    def shutdown(self):
+        """Shutdown the application and clean up resources."""
+        self._stop_expiration_thread()

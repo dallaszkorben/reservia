@@ -150,12 +150,12 @@ def test_db_reservation_empty_table_operations():
 
         operation += 1
         print(f"\n{operation}. Cancel reservation on empty table test")
-        success, result, error_code, _ = db.cancel_reservation(resource_id)
+        success, result, error_code, _ = db.cancel_reservation(resource_id, test_user.id)
         assert not success and result is None and error_code == "RESERVATION_NOT_FOUND"
 
         operation += 1
         print(f"\n{operation}. Release reservation on empty table test")
-        success, result, error_code, _ = db.release_reservation(resource_id)
+        success, result, error_code, _ = db.release_reservation(resource_id, test_user.id)
         assert not success and result is None and error_code == "RESERVATION_NOT_FOUND"
 
     print(f"{GREEN}Database reservation empty table operations tests passed!{RESET}")
@@ -229,7 +229,7 @@ def test_db_reservation_lifecycle_workflow():
         
         db.logout()
         _, _, _, _ = db.login("user1", hash_password("pass1"))
-        _, _, _, _ = db.release_reservation(resource1_id)
+        _, _, _, _ = db.release_reservation(resource1_id, user1.id)
 
         active_reservations = db.get_active_reservations(resource1_id)
         print(f"Active reservations after User1 release:")
@@ -247,7 +247,7 @@ def test_db_reservation_lifecycle_workflow():
         
         db.logout()
         _, _, _, _ = db.login("user3", hash_password("pass3"))
-        _, _, _, _ = db.cancel_reservation(resource1_id)
+        _, _, _, _ = db.cancel_reservation(resource1_id, user3.id)
 
         active_reservations = db.get_active_reservations(resource1_id)
         print(f"Active reservations after User3 cancel:")
@@ -444,6 +444,94 @@ def test_api_reservation_active():
 
     print(f"{GREEN}API reservation active tests passed!{RESET}")
 
+def test_api_reservation_keep_alive():
+    """
+    Test /reservation/keep_alive endpoint functionality including successful
+    keep alive operations, authorization checks, and error handling.
+    """
+    print("=== API reservation keep_alive endpoint tests started!")
+
+    cleanup_test_databases()
+
+    config_dict = {
+        'app_name': TEST_APP_NAME,
+        'version': '1.0.0',
+        'log': {'log_name': 'test.log', 'level': 'DEBUG', 'backupCount': 1},
+        'database': {'name': TEST_DB_NAME}
+    }
+
+    app = ReserviaApp(config_dict)
+    operation = 0
+
+    with app.test_client() as client:
+        # Setup
+        client.post('/session/login', data=json.dumps({'name': 'admin', 'password': hash_password('admin')}), content_type='application/json')
+        client.post('/admin/user/add', data=json.dumps({'name': 'user1', 'email': 'user1@example.com', 'password': hash_password('pass1')}), content_type='application/json')
+        client.post('/admin/user/add', data=json.dumps({'name': 'user2', 'email': 'user2@example.com', 'password': hash_password('pass2')}), content_type='application/json')
+        resp = client.post('/admin/resource/add', data=json.dumps({'name': 'Test Resource', 'comment': 'Test resource'}), content_type='application/json')
+        resource_id = json.loads(resp.data)['resource_id']
+        client.post('/session/logout')
+
+        operation += 1
+        print(f"\n{operation}. Unauthorized keep_alive test")
+        # Test: Verify that unauthenticated users cannot access keep_alive endpoint
+        response = client.post('/reservation/keep_alive', data=json.dumps({'resource_id': resource_id}), content_type='application/json')
+        assert response.status_code == 401  # Should return 401 Unauthorized
+
+        operation += 1
+        print(f"\n{operation}. Keep_alive without reservation test")
+        # Test: Verify that users cannot keep_alive when they have no approved reservation
+        client.post('/session/login', data=json.dumps({'name': 'user1', 'password': hash_password('pass1')}), content_type='application/json')
+        response = client.post('/reservation/keep_alive', data=json.dumps({'resource_id': resource_id}), content_type='application/json')
+        assert response.status_code == 404  # Should return 404 Not Found
+        data = json.loads(response.data)
+        assert 'error' in data  # Should contain error message
+
+        operation += 1
+        print(f"\n{operation}. Successful keep_alive test")
+        # Test: Verify successful keep_alive operation updates valid_until_date
+        # First make a reservation
+        client.post('/reservation/request', data=json.dumps({'resource_id': resource_id}), content_type='application/json')
+        
+        # Get initial valid_until_date
+        with app.test_request_context():
+            db = Database.get_instance(config_dict)
+            reservations = db.get_active_reservations(resource_id)
+            initial_valid_until = reservations[0].valid_until_date
+        
+        # Wait a moment to ensure time difference
+        time.sleep(1)
+        
+        # Keep alive the reservation
+        response = client.post('/reservation/keep_alive', data=json.dumps({'resource_id': resource_id}), content_type='application/json')
+        assert response.status_code == 200  # Should return 200 OK
+        data = json.loads(response.data)
+        assert data['message'] == 'Reservation kept alive successfully'  # Should return success message
+        assert 'valid_until_date' in data  # Should include updated valid_until_date
+        
+        # Verify valid_until_date was updated to a later time
+        with app.test_request_context():
+            db = Database.get_instance(config_dict)
+            reservations = db.get_active_reservations(resource_id)
+            new_valid_until = reservations[0].valid_until_date
+            assert new_valid_until > initial_valid_until  # New time should be later than initial
+
+        operation += 1
+        print(f"\n{operation}. Keep_alive queued reservation test")
+        # Test: Verify that users cannot keep_alive queued (non-approved) reservations
+        # User2 makes a request (should be queued since user1 has approved reservation)
+        client.post('/session/logout')
+        client.post('/session/login', data=json.dumps({'name': 'user2', 'password': hash_password('pass2')}), content_type='application/json')
+        client.post('/reservation/request', data=json.dumps({'resource_id': resource_id}), content_type='application/json')
+        
+        # Try to keep alive queued reservation (should fail)
+        response = client.post('/reservation/keep_alive', data=json.dumps({'resource_id': resource_id}), content_type='application/json')
+        assert response.status_code == 404  # Should return 404 Not Found
+        data = json.loads(response.data)
+        assert 'error' in data  # Should contain error message
+
+    print(f"{GREEN}API reservation keep_alive tests passed!{RESET}")
+
 if __name__ == "__main__":
     try:
         test_db_reservation_request_failure()
@@ -452,6 +540,7 @@ if __name__ == "__main__":
         test_api_reservation_request()
         test_api_reservation_lifecycle()
         test_api_reservation_active()
+        test_api_reservation_keep_alive()
     except Exception as e:
         print(f"{RED}Tests failed: {e}{RESET}")
         raise

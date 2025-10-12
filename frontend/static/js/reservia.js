@@ -233,9 +233,10 @@ class ResourceCard {
      * @param {string} status - Reservation status ('approved', 'requested', etc.)
      * @param {string} request_date - When the reservation was requested
      * @param {string} approved_date - When the reservation was approved (if applicable)
+     * @param {number} valid_until_date - Unix timestamp when reservation expires (for approved reservations)
      */
-    addUser(name, id, status, request_date, approved_date) {
-        const user = { name, id, status, request_date, approved_date };
+    addUser(name, id, status, request_date, approved_date, valid_until_date) {
+        const user = { name, id, status, request_date, approved_date, valid_until_date };
         this.users.push(user);                          // Add to data model
         this.view?.addUser(user, this.list_font_size);  // Update visual representation
         this.view?.updateBackgroundColor();             // Change card color based on occupancy
@@ -376,25 +377,104 @@ class ResourceView {
         const currentUserId = this.getCurrentUserId();
         const isCurrentUser = currentUserId && user.id === currentUserId;
 
+        // Check if user has countdown (approved with valid_until_date)
+        const hasCountdown = user.status === 'approved' && user.valid_until_date;
+        
+        // Create user item container
         const user_item = $('<div></div>')
             .addClass('user-item')
-            .attr('data-user-id', user.id)  // For easy removal later
+            .attr('data-user-id', user.id)
+            .css({
+                'background': backgroundColor,
+                'border': isCurrentUser ? '2px solid #000000' : 'none',
+                'position': 'relative',
+                'height': hasCountdown ? '40px' : '25px'  // Taller for countdown
+            });
+
+        // Create user name element
+        const nameElement = $('<div></div>')
+            .addClass('user-name')
             .text(user.name)
             .css({
                 'font-size': fontSize + 'px',
-                'background': backgroundColor,
-                'border': isCurrentUser ? '2px solid #000000' : 'none'  // Black border frame for logged-in user
-            })
-            .click(() => {
-                // Handle user click - notify both the resource and the pool
-                this.resource_card.onUserSelected(user.id, user.name);
-                this.pool.dispatchEvent('user_selected', {
-                    resource_id: this.resource_card.id,
-                    resource_name: this.resource_card.name,
-                    user_id: user.id,
-                    user_name: user.name
-                });
+                'text-align': 'center',
+                'line-height': hasCountdown ? '20px' : '25px'
             });
+
+        user_item.append(nameElement);
+
+        // Add countdown on second line if approved
+        if (hasCountdown) {
+            const countdownElement = $('<div></div>')
+                .addClass('user-countdown')
+                .css({
+                    'font-size': (fontSize - 2) + 'px',
+                    'text-align': 'center',
+                    'line-height': '20px',
+                    'color': '#333'
+                });
+            user_item.append(countdownElement);
+        }
+
+        // Add hover actions for current user only
+        if (isCurrentUser) {
+            const actionsContainer = $('<div></div>')
+                .addClass('user-actions')
+                .css({
+                    'position': 'absolute',
+                    'right': '5px',
+                    'top': '50%',
+                    'transform': 'translateY(-50%)',
+                    'display': 'none'
+                });
+
+            // Release/Cancel button
+            const primaryAction = user.status === 'approved' ? 'release' : 'cancel';
+            const primaryIcon = user.status === 'approved' ? '❌' : '🚫';
+            const primaryButton = $('<span></span>')
+                .addClass('action-btn primary-action')
+                .attr('data-action', primaryAction)
+                .text(primaryIcon)
+                .css({
+                    'cursor': 'pointer',
+                    'margin-left': '3px',
+                    'font-size': '14px'
+                });
+
+            actionsContainer.append(primaryButton);
+
+            // Keep alive button (only for approved reservations)
+            if (user.status === 'approved') {
+                const keepAliveButton = $('<span></span>')
+                    .addClass('action-btn keep-alive-action')
+                    .attr('data-action', 'keep_alive')
+                    .text('⏰')
+                    .css({
+                        'cursor': 'pointer',
+                        'margin-left': '3px',
+                        'font-size': '14px'
+                    });
+                actionsContainer.append(keepAliveButton);
+            }
+
+            user_item.append(actionsContainer);
+
+            // Hover events
+            user_item.hover(
+                () => actionsContainer.show(),
+                () => actionsContainer.hide()
+            );
+
+            // Action button clicks
+            actionsContainer.on('click', '.action-btn', (e) => {
+                e.stopPropagation();
+                const action = $(e.target).attr('data-action');
+                this.handleUserAction(user, action);
+            });
+        }
+
+        // Click handler disabled - users must use hover action buttons
+
         this.user_list.append(user_item);
     }
 
@@ -445,6 +525,55 @@ class ResourceView {
         this.user_list.css({
             top: newUserListTop + 'px',
             height: newUserListHeight + 'px'
+        });
+    }
+
+    /**
+     * Converts seconds to HH:MM:SS format
+     * @param {number} seconds - Number of seconds to convert
+     * @returns {string} Time in HH:MM:SS format
+     */
+    convertToHHMMSS(seconds) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    /**
+     * Handles action button clicks for user items
+     * @param {object} user - User data
+     * @param {string} action - Action to perform ('release', 'cancel', 'keep_alive')
+     */
+    handleUserAction(user, action) {
+        this.pool.dispatchEvent('user_action', {
+            resource_id: this.resource_card.id,
+            resource_name: this.resource_card.name,
+            user_id: user.id,
+            user_name: user.name,
+            action: action
+        });
+    }
+
+    /**
+     * Updates the remaining time display for approved reservations
+     * Called every second to refresh countdown timers
+     */
+    updateRemainingTimes() {
+        this.resource_card.users.forEach(user => {
+            const userElement = this.user_list.find(`[data-user-id="${user.id}"]`);
+            const countdownElement = userElement.find('.user-countdown');
+            
+            if (countdownElement.length > 0 && user.status === 'approved' && user.valid_until_date) {
+                const currentTime = Math.floor(Date.now() / 1000);
+                const remainingSeconds = user.valid_until_date - currentTime;
+                if (remainingSeconds > 0) {
+                    const timeString = this.convertToHHMMSS(remainingSeconds);
+                    countdownElement.text(timeString);
+                } else {
+                    countdownElement.text('EXPIRED');
+                }
+            }
         });
     }
 
