@@ -4,10 +4,22 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; /* Apple system fonts */
     background: linear-gradient(135deg, #007AFF 0%, #5AC8FA 50%, #34C759 100%); /* Apple blue to green gradient */
     margin: 0;
-    padding: 20px 20px 20px 20px;
-    height: 100vh;
-    overflow: hidden;
+    padding: 10px;
+    min-height: 100vh;
+    overflow-x: hidden;
+    overflow-y: auto;
     box-sizing: border-box;
+    /* Mobile optimizations */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Mobile-specific styles */
+@media (max-width: 768px) {
+    body {
+        padding: 5px;
+    }
 }
 
 /* ===== HEADER SECTION ===== */
@@ -16,7 +28,7 @@ body {
     background: rgba(255,255,255,0.95); /* Bright white with slight transparency */
     backdrop-filter: blur(20px); /* Strong glass effect */
     border-radius: 0 0 16px 16px; /* Rounded bottom corners only */
-    padding: 10px;
+    padding: 8px;
     box-shadow: 0 10px 40px rgba(0,122,255,0.2); /* Blue-tinted shadow */
     border: 1px solid rgba(255,255,255,0.3); /* Subtle white border */
     text-align: left; /* Button alignment */
@@ -27,6 +39,17 @@ body {
     z-index: 20000;
     transform: translateY(-100%);
     transition: transform 0.3s ease;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+/* Mobile header adjustments */
+@media (max-width: 768px) {
+    #header {
+        padding: 5px;
+        gap: 3px;
+    }
 }
 
 #header.visible {
@@ -58,6 +81,18 @@ h1 {
     color: white !important;
     box-shadow: 0 4px 15px rgba(0,122,255,0.3) !important; /* Blue shadow */
     transition: all 0.3s ease !important;
+    /* Mobile touch optimization */
+    min-height: 44px !important;
+    touch-action: manipulation;
+}
+
+/* Mobile button adjustments */
+@media (max-width: 768px) {
+    .ui-button {
+        padding: 8px 16px !important;
+        font-size: 14px !important;
+        min-height: 40px !important;
+    }
 }
 
 .ui-button:hover {
@@ -245,6 +280,22 @@ h1 {
     border: 1px solid rgba(255,255,255,0.5);
 }
 
+/* Mobile dialog adjustments */
+@media (max-width: 768px) {
+    #login-form, 
+    #modify-form,
+    #add-resource-form,
+    #resource-select-form,
+    #modify-resource-form,
+    #add-user-form,
+    #modify-user-form {
+        padding: 20px;
+        margin: 10px;
+        max-width: calc(100vw - 20px);
+        border-radius: 15px;
+    }
+}
+
 /* ===== INPUT FIELDS ===== */
 /* Username and password input fields */
 .ui-widget input {
@@ -254,8 +305,19 @@ h1 {
     margin: 10px 0; /* More vertical spacing */
     width: 100%;
     box-sizing: border-box;
-    font-size: 16px;
+    font-size: 16px; /* Prevents zoom on iOS */
     transition: border-color 0.3s ease;
+    /* Mobile optimizations */
+    -webkit-appearance: none;
+    -webkit-border-radius: 12px;
+}
+
+/* Mobile input adjustments */
+@media (max-width: 768px) {
+    .ui-widget input {
+        padding: 12px;
+        margin: 8px 0;
+    }
 }
 
 .ui-widget input:focus {
@@ -290,6 +352,20 @@ h1 {
     font-size: 16px; /* Text size */
     cursor: pointer; /* Clickable cursor */
     transition: all 0.3s ease; /* Smooth animations */
+    /* Mobile touch optimization */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Mobile resource card adjustments */
+@media (max-width: 768px) {
+    .resource-card {
+        font-size: 14px;
+    }
+    
+    .resource-title {
+        font-size: 16px !important;
+    }
 }
 
 /* Hover effect for resource cards */
@@ -319,6 +395,26 @@ h1 {
     display: flex;
     flex-direction: column;
     justify-content: center;
+    /* Mobile touch optimization */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 32px;
+}
+
+/* Mobile user item adjustments */
+@media (max-width: 768px) {
+    .user-item {
+        min-height: 36px;
+        padding: 6px 8px;
+    }
+    
+    .user-name {
+        font-size: 13px;
+    }
+    
+    .user-countdown {
+        font-size: 11px;
+    }
 }
 
 .user-item:hover {
@@ -380,6 +476,77 @@ h1 {
     color: white;
 }
 
+/* ===== MOBILE OPTIMIZATIONS ===== */
+/* Improve scrolling performance on mobile */
+* {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Better touch targets for mobile */
+@media (max-width: 768px) {
+    /* Larger touch targets */
+    .dropdown-item {
+        padding: 12px 15px;
+        font-size: 16px;
+    }
+    
+    .submenu-resource-item,
+    .submenu-user-item {
+        padding: 12px 15px;
+        font-size: 16px;
+    }
+    
+    /* Prevent text selection on touch */
+    .resource-card,
+    .user-item,
+    .dropdown-item,
+    .ui-button {
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+    }
+    
+    /* Improve dropdown visibility on mobile */
+    .dropdown-menu {
+        min-width: 150px;
+        font-size: 16px;
+    }
+    
+    /* Better spacing for mobile */
+    #resource-pool-container {
+        margin-top: 20px;
+        padding: 10px 0;
+    }
+    
+    /* Adjust title container for mobile */
+    #title-container {
+        padding: 15px !important;
+        margin-bottom: 5px !important;
+    }
+    
+    #title-container h1 {
+        font-size: 1.8em;
+        margin: 0 0 10px 0;
+    }
+}
+
+/* Landscape mobile adjustments */
+@media (max-width: 768px) and (orientation: landscape) {
+    #title-container {
+        padding: 10px !important;
+    }
+    
+    #title-container h1 {
+        font-size: 1.5em;
+        margin: 0 0 5px 0;
+    }
+    
+    #header {
+        padding: 3px;
+    }
+}
+
 /* ===== UTILITY CLASSES ===== */
 .hidden { display: none !important; }
 .margin-right-10 { margin-right: 10px; }
@@ -387,3 +554,12 @@ h1 {
 .success-message { color: green; display: none; margin-top: 15px; }
 .form-input { width: 100%; margin: 10px 0; padding: 8px; }
 .form-select { width: 100%; margin: 10px 0; padding: 8px; }
+
+/* Mobile utility adjustments */
+@media (max-width: 768px) {
+    .margin-right-10 { margin-right: 5px; }
+    .form-input, .form-select { 
+        padding: 12px; 
+        font-size: 16px;
+    }
+}

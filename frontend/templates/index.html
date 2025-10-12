@@ -2,17 +2,18 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reservia - Resource Reservation System</title>
-    
+ <!--   <meta name="viewport" content="width=device-width, initial-scale=0.2, maximum-scale=1.0, user-scalable=no"> -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0">
+     <title>Reservia - Resource Reservation System</title>
+
     <!-- jQuery and jQuery UI -->
     <script src="{{ url_for('static', filename='js/jquery/jquery-3.6.0.min.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='js/jquery-ui/jquery-ui.min.css') }}">
     <script src="{{ url_for('static', filename='js/jquery-ui/jquery-ui.min.js') }}"></script>
-    
+
     <!-- Styles -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    
+
     <!-- Core JavaScript modules (order matters) -->
     <script src="{{ url_for('static', filename='js/config.js') }}"></script>
     <script src="{{ url_for('static', filename='js/crypto_utils.js') }}"></script>
@@ -36,7 +37,7 @@
         <button id="login-btn" class="margin-right-10">Login</button>
         <button id="logout-btn" class="margin-right-10 hidden">Logout</button>
         <button id="modify-btn" class="margin-right-10 hidden">Modify</button>
-        
+
         <!-- Manage Resources Dropdown -->
         <div class="dropdown-container hidden" id="manage-resource-container">
             <button id="manage-resource-btn" class="margin-right-10">Manage Resources</button>
@@ -51,7 +52,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Manage Users Dropdown -->
         <div class="dropdown-container hidden" id="manage-user-container">
             <button id="manage-user-btn" class="margin-right-10">Manage Users</button>
@@ -154,7 +155,7 @@
     <div id="main-content">
         <p>Welcome to Reservia Resource Reservation System</p>
     </div>
-    
+
     <!-- Resource Pool Container -->
     <div id="resource-pool-container"></div>
 </body>

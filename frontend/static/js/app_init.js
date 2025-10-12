@@ -72,8 +72,25 @@ class AppInit {
         // Dropdown management
         this.setupDropdownListeners();
         
-        // Window resize handler
-        $(window).resize(() => ResourcePool.getInstance().updateLayout());
+        // Window resize handler with responsive config update
+        $(window).resize(() => {
+            this.updateResponsiveConfig();
+            ResourcePool.getInstance().updateLayout();
+        });
+        
+        // Orientation change handler for mobile
+        $(window).on('orientationchange', () => {
+            setTimeout(() => {
+                this.updateResponsiveConfig();
+                ResourcePool.getInstance().updateLayout();
+            }, 100);
+        });
+        
+        // Initial responsive config setup
+        this.updateResponsiveConfig();
+        
+        // Add mobile-specific touch event handlers
+        this.setupMobileTouchHandlers();
     }
     
     static setupDropdownListeners() {
@@ -145,6 +162,48 @@ class AppInit {
         
         // Setup submenu hover handlers
         this.setupSubmenuHandlers();
+    }
+    
+    static setupMobileTouchHandlers() {
+        // Prevent double-tap zoom on buttons and cards
+        $('.ui-button, .resource-card, .user-item').on('touchend', function(e) {
+            e.preventDefault();
+            $(this).trigger('click');
+        });
+        
+        // Improve dropdown touch handling on mobile
+        if (window.innerWidth <= 768) {
+            $('.dropdown-item').off('click').on('touchend click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                $(this).trigger('tap');
+            });
+        }
+    }
+    
+    static updateResponsiveConfig() {
+        const isMobile = window.innerWidth <= 768;
+        
+        // Update GUI_CONFIG for current screen size
+        GUI_CONFIG['resource-card-width'] = isMobile ? 180 : 250;
+        GUI_CONFIG['resource-card-height'] = isMobile ? 280 : 400;
+        GUI_CONFIG['resource-card-list-font-size'] = isMobile ? 12 : 15;
+        GUI_CONFIG['resource-card-title-font-size'] = isMobile ? 18 : 25;
+        GUI_CONFIG['screen-margin'] = isMobile ? 20 : 40;
+        GUI_CONFIG['resource-gap'] = isMobile ? 15 : 20;
+        GUI_CONFIG['resource-list-top-gap'] = isMobile ? 40 : 50;
+        GUI_CONFIG['layout-top-margin'] = isMobile ? 15 : 20;
+        
+        // Update ResourceCard config
+        if (typeof ResourceCard !== 'undefined') {
+            ResourceCard.config = {
+                resource_width: GUI_CONFIG['resource-card-width'],
+                resource_height: GUI_CONFIG['resource-card-height'],
+                resource_gap: GUI_CONFIG['resource-gap'],
+                resource_list_side_gap: GUI_CONFIG['resource-list-side-gap'],
+                resource_list_top_gap: GUI_CONFIG['resource-list-top-gap']
+            };
+        }
     }
     
     static setupSubmenuHandlers() {

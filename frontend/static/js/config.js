@@ -2,19 +2,19 @@
 // Centralized configuration for all GUI dimensions, styling, and behavior
 
 const GUI_CONFIG = {
-    // Resource card dimensions
-    'resource-card-width': 250,
-    'resource-card-height': 400,
-    'resource-card-list-font-size': 15,
-    'resource-card-title-font-size': 25,
+    // Resource card dimensions (responsive)
+    'resource-card-width': window.innerWidth <= 768 ? 180 : 250,
+    'resource-card-height': window.innerWidth <= 768 ? 280 : 400,
+    'resource-card-list-font-size': window.innerWidth <= 768 ? 12 : 15,
+    'resource-card-title-font-size': window.innerWidth <= 768 ? 18 : 25,
     'resource-card-title-length': 25,
 
-    // Layout configuration
-    'screen-margin': 40,
-    'resource-gap': 20,
+    // Layout configuration (responsive)
+    'screen-margin': window.innerWidth <= 768 ? 20 : 40,
+    'resource-gap': window.innerWidth <= 768 ? 15 : 20,
     'resource-list-side-gap': 6,
-    'resource-list-top-gap': 50,
-    'layout-top-margin': 20,
+    'resource-list-top-gap': window.innerWidth <= 768 ? 40 : 50,
+    'layout-top-margin': window.innerWidth <= 768 ? 15 : 20,
 
     // Timing configuration
     'auto-refresh-interval': 5000,
