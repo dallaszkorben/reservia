@@ -6,7 +6,7 @@
 
 ```bash
 # Clone and setup
-git clone <repository-url>
+git clone https://github.com/dallaszkorben/reservia.git
 cd reservia
 python3 -m venv env
 source env/bin/activate
@@ -67,7 +67,7 @@ open http://localhost:5000
 
 1. **Clone the repository**:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/dallaszkorben/reservia.git
    cd reservia
    ```
 
