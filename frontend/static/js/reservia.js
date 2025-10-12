@@ -377,8 +377,8 @@ class ResourceView {
         const currentUserId = this.getCurrentUserId();
         const isCurrentUser = currentUserId && user.id === currentUserId;
 
-        // Check if user has countdown (approved with valid_until_date)
-        const hasCountdown = user.status === 'approved' && user.valid_until_date;
+        // Check if user has countdown (when valid_until_date is not null/undefined)
+        const hasCountdown = user.valid_until_date != null && user.valid_until_date > 0;
         
         // Create user item container
         const user_item = $('<div></div>')
@@ -443,8 +443,8 @@ class ResourceView {
 
             actionsContainer.append(primaryButton);
 
-            // Keep alive button (only for approved reservations)
-            if (user.status === 'approved') {
+            // Keep alive button (for reservations with valid_until_date not null)
+            if (user.valid_until_date != null && user.valid_until_date > 0) {
                 const keepAliveButton = $('<span></span>')
                     .addClass('action-btn keep-alive-action')
                     .attr('data-action', 'keep_alive')
@@ -564,7 +564,7 @@ class ResourceView {
             const userElement = this.user_list.find(`[data-user-id="${user.id}"]`);
             const countdownElement = userElement.find('.user-countdown');
             
-            if (countdownElement.length > 0 && user.status === 'approved' && user.valid_until_date) {
+            if (countdownElement.length > 0 && user.valid_until_date != null && user.valid_until_date > 0) {
                 const currentTime = Math.floor(Date.now() / 1000);
                 const remainingSeconds = user.valid_until_date - currentTime;
                 if (remainingSeconds > 0) {

@@ -47,7 +47,7 @@ class ReservationLifecycle(Base):
     approved_date = Column(Integer, nullable=True)
     cancelled_date = Column(Integer, nullable=True)
     released_date = Column(Integer, nullable=True)
-    valid_until_date = Column(Integer, nullable=False)
+    valid_until_date = Column(Integer, nullable=True)
 
     user = relationship("User")
     resource = relationship("Resource")
@@ -84,6 +84,7 @@ class Database:
         self.session = Session()
 
         self._create_default_admin()
+        self._migrate_database_if_needed()
         logging.info(f"{LOG_PREFIX_DATABASE}Database initialized at {db_path}")
 
     def _create_default_admin(self):
@@ -101,6 +102,28 @@ class Database:
                 self.session.commit()
 
                 logging.info(f"{LOG_PREFIX_DATABASE}Default admin user created with password hash: {encoded_password[:10]}...")
+
+    def _migrate_database_if_needed(self):
+        """Handle database schema migrations for valid_until_date nullable change"""
+        with self.lock:
+            try:
+                # Check if we need to migrate by trying to insert a NULL value
+                # This is a simple way to detect if the column is already nullable
+                test_query = "SELECT valid_until_date FROM reservation_lifecycle WHERE valid_until_date IS NULL LIMIT 1"
+                self.session.execute(test_query)
+                logging.info(f"{LOG_PREFIX_DATABASE}Database schema is up to date")
+            except Exception:
+                # If query fails, the column might not be nullable yet
+                # For SQLite, we need to recreate the table to change nullable constraint
+                logging.info(f"{LOG_PREFIX_DATABASE}Migrating database schema for nullable valid_until_date")
+                try:
+                    # SQLite doesn't support ALTER COLUMN, so we recreate the table
+                    # The new schema will be applied automatically by SQLAlchemy
+                    Base.metadata.drop_all(self.engine, tables=[ReservationLifecycle.__table__])
+                    Base.metadata.create_all(self.engine, tables=[ReservationLifecycle.__table__])
+                    logging.info(f"{LOG_PREFIX_DATABASE}Database migration completed")
+                except Exception as e:
+                    logging.warning(f"{LOG_PREFIX_DATABASE}Database migration failed, continuing with existing schema: {e}")
 
     # === Session ===
 
@@ -521,13 +544,21 @@ class Database:
 
             # Create new reservation lifecycle record
             request_epoch = get_current_epoch()
-            keep_alive_seconds = CONFIG['approved_keep_alive_sec']
+            
+            # Set valid_until_date based on configuration
+            requested_keep_alive = CONFIG.get('requested_keep_alive_sec', 0)
+            if requested_keep_alive and requested_keep_alive > 0:
+                # Option 1: Use requested keep alive for queued reservations
+                valid_until = request_epoch + requested_keep_alive
+            else:
+                # Option 2: No expiration for queued reservations (None = no countdown)
+                valid_until = None
             
             reservation = ReservationLifecycle(
                 user_id=user_id,
                 resource_id=resource_id,
                 request_date=request_epoch,
-                valid_until_date=request_epoch + keep_alive_seconds
+                valid_until_date=valid_until
             )
 
             # Check if resource is free
@@ -545,7 +576,7 @@ class Database:
             # If resource is free, auto-approve the reservation
             if is_free:
                 reservation.approved_date = request_epoch
-                reservation.valid_until_date = request_epoch + keep_alive_seconds
+                reservation.valid_until_date = request_epoch + CONFIG['approved_keep_alive_sec']
 
             self.session.add(reservation)
             self.session.commit()
@@ -722,22 +753,33 @@ class Database:
         """
         with self.lock:
 
-            # Find the user's approved reservation
+            # Find the user's active reservation (approved or requested with valid_until_date not None)
             reservation = self.session.query(ReservationLifecycle).filter(
                 ReservationLifecycle.user_id == user_id,
                 ReservationLifecycle.resource_id == resource_id,
-                ReservationLifecycle.approved_date.isnot(None),
                 ReservationLifecycle.cancelled_date.is_(None),
-                ReservationLifecycle.released_date.is_(None)
+                ReservationLifecycle.released_date.is_(None),
+                ReservationLifecycle.valid_until_date.isnot(None)
             ).first()
 
             if not reservation:
-                logging.error(f"{LOG_PREFIX_DATABASE}No approved reservation found for User {user_id} on Resource {resource_id}")
-                return False, None, "RESERVATION_NOT_FOUND", "No approved reservation found to keep alive"
+                logging.error(f"{LOG_PREFIX_DATABASE}No active reservation with expiration found for User {user_id} on Resource {resource_id}")
+                return False, None, "RESERVATION_NOT_FOUND", "No active reservation found to keep alive"
 
-            # Update valid_until_date
+            # Update valid_until_date based on reservation status
             current_epoch = get_current_epoch()
-            reservation.valid_until_date = current_epoch + keep_alive_seconds
+            if reservation.approved_date:
+                # Approved reservation: use approved_keep_alive_sec
+                reservation.valid_until_date = current_epoch + CONFIG['approved_keep_alive_sec']
+            else:
+                # Requested reservation: use requested_keep_alive_sec
+                requested_keep_alive = CONFIG.get('requested_keep_alive_sec', 0)
+                if requested_keep_alive and requested_keep_alive > 0:
+                    reservation.valid_until_date = current_epoch + requested_keep_alive
+                else:
+                    logging.error(f"{LOG_PREFIX_DATABASE}Keep alive not supported for requested reservations (requested_keep_alive_sec not configured)")
+                    return False, None, "KEEP_ALIVE_NOT_SUPPORTED", "Keep alive not supported for requested reservations"
+            
             self.session.commit()
 
             # Logging
@@ -751,21 +793,23 @@ class Database:
 
     def check_expired_reservations(self):
         """
-        Check all approved reservations and release expired ones.
+        Check all reservations and handle expired ones.
+        - Approved reservations: release them
+        - Requested reservations: cancel them (only if requested_keep_alive_sec > 0)
         Called by the application's expiration worker thread.
         """
         with self.lock:
             current_epoch = get_current_epoch()
             
-            # Find all approved reservations that have expired
-            expired_reservations = self.session.query(ReservationLifecycle).filter(
+            # Handle expired approved reservations (release them)
+            expired_approved = self.session.query(ReservationLifecycle).filter(
                 ReservationLifecycle.approved_date.isnot(None),
                 ReservationLifecycle.cancelled_date.is_(None),
                 ReservationLifecycle.released_date.is_(None),
                 ReservationLifecycle.valid_until_date < current_epoch
             ).all()
             
-            for reservation in expired_reservations:
+            for reservation in expired_approved:
                 # Release the expired reservation
                 release_epoch = get_current_epoch()
                 reservation.released_date = release_epoch
@@ -793,6 +837,31 @@ class Database:
                 resource_name = reservation.resource.name
                 logging.info(f"{LOG_PREFIX_DATABASE}Reservation auto-expired: User {reservation.user_id} ({user_name}) for Resource {reservation.resource_id} ({resource_name}) at {release_iso}")
             
-            if expired_reservations:
+            # Handle expired requested reservations (cancel them) - only if requested_keep_alive_sec > 0
+            requested_keep_alive = CONFIG.get('requested_keep_alive_sec', 0)
+            expired_requested = []
+            if requested_keep_alive and requested_keep_alive > 0:
+                expired_requested = self.session.query(ReservationLifecycle).filter(
+                    ReservationLifecycle.approved_date.is_(None),
+                    ReservationLifecycle.cancelled_date.is_(None),
+                    ReservationLifecycle.released_date.is_(None),
+                    ReservationLifecycle.valid_until_date.isnot(None),
+                    ReservationLifecycle.valid_until_date < current_epoch
+                ).all()
+                
+                for reservation in expired_requested:
+                    # Cancel the expired requested reservation
+                    cancel_epoch = get_current_epoch()
+                    reservation.cancelled_date = cancel_epoch
+                    
+                    # Logging
+                    cancel_iso = epoch_to_iso8601(cancel_epoch)
+                    user = self.session.query(User).filter(User.id == reservation.user_id).first()
+                    user_name = user.name if user else "Unknown"
+                    resource_name = reservation.resource.name
+                    logging.info(f"{LOG_PREFIX_DATABASE}Requested reservation auto-expired: User {reservation.user_id} ({user_name}) for Resource {reservation.resource_id} ({resource_name}) at {cancel_iso}")
+            
+            total_expired = len(expired_approved) + (len(expired_requested) if requested_keep_alive and requested_keep_alive > 0 else 0)
+            if total_expired > 0:
                 self.session.commit()
-                logging.info(f"{LOG_PREFIX_DATABASE}Released {len(expired_reservations)} expired reservations")
+                logging.info(f"{LOG_PREFIX_DATABASE}Processed {total_expired} expired reservations")

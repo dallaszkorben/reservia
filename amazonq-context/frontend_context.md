@@ -137,7 +137,20 @@ pool.updateLayout();
 
 ## Recent Updates
 
-### Hover Action Interface (Latest)
+### Configurable Requested Reservation Expiration (Latest)
+**Features**: Conditional countdown display based on backend configuration
+- **Dual Expiration Model**: Supports both approved and requested reservation expiration
+- **Conditional Display**: Countdown and keep-alive only shown when `valid_until_date != null`
+- **Backend Integration**: Respects `requested_keep_alive_sec` configuration setting
+- **Flexible UI**: Single-line (no expiration) vs multi-line (with countdown) user items
+
+**Implementation Details**:
+- `hasCountdown = user.valid_until_date != null && user.valid_until_date > 0`
+- Keep-alive button only appears for reservations with expiration times
+- Height adjustment: 25px (no countdown) vs 40px (with countdown)
+- Null-safe countdown timer updates
+
+### Hover Action Interface
 **Features**: Icon-based user actions with improved UX
 - **Hover Actions**: ❌ (Release/Cancel) and ⏰ (Keep Alive) icons appear on hover
 - **User Restrictions**: Only logged-in user sees action buttons on their own reservations

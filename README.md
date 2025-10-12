@@ -129,7 +129,8 @@ The system uses centralized configuration in `backend/config/config.py`:
 
 ```python
 CONFIG = {
-    'approved_keep_alive_sec': 600,  # Default 10 minutes (600 seconds)
+    'approved_keep_alive_sec': 600,     # Default 10 minutes (600 seconds)
+    'requested_keep_alive_sec': 1800,   # Default 30 minutes (1800 seconds), 0 = disabled
     'expiration_check_interval_sec': 1  # Check for expired reservations every 1 second
 }
 ```
@@ -137,6 +138,7 @@ CONFIG = {
 ### Key Settings
 
 - **`approved_keep_alive_sec`**: Duration (in seconds) that approved reservations remain valid before automatic expiration
+- **`requested_keep_alive_sec`**: Duration (in seconds) that requested reservations remain valid. Set to `0` or `None` to disable expiration for requested reservations
 - **`expiration_check_interval_sec`**: Frequency (in seconds) for background thread to check for expired reservations
 
 ### Frontend Configuration
@@ -242,19 +244,44 @@ python app.py
 
 ## ⏰ Reservation Expiration System
 
-### Automatic Expiration
-- **Approved reservations** automatically expire after configurable timeout (default: 10 minutes)
-- **Background monitoring** checks for expired reservations every second
+### Dual Expiration Model
+The system supports configurable expiration for both approved and requested reservations:
+
+#### **Approved Reservations** (Always Active)
+- **Automatic expiration** after `approved_keep_alive_sec` (default: 10 minutes)
+- **Keep-alive functionality** available via UI hover actions or API
 - **Auto-approval** of next queued user when reservation expires
+- **Real-time countdown** displayed in GUI
+
+#### **Requested Reservations** (Configurable)
+**Option 1: With Expiration** (`requested_keep_alive_sec > 0`)
+- **Automatic expiration** after `requested_keep_alive_sec` (default: 30 minutes)
+- **Keep-alive functionality** available for requested reservations
+- **Real-time countdown** displayed in GUI
+- **Auto-cancellation** when expiration time reached
+
+**Option 2: No Expiration** (`requested_keep_alive_sec = 0` or `None`)
+- **No automatic expiration** for requested reservations
+- **No countdown display** in GUI (single-line user items)
+- **No keep-alive functionality** for requested reservations
+- **Manual cancellation only**
+
+### Configuration
+```python
+CONFIG = {
+    'approved_keep_alive_sec': 600,    # 10 minutes for approved reservations
+    'requested_keep_alive_sec': 1800,  # 30 minutes for requested reservations (0 = disabled)
+    'expiration_check_interval_sec': 1  # Background check frequency
+}
+```
+
+### Database Schema
+- **`valid_until_date`**: `NULL` when no expiration, timestamp when expiration enabled
+- **Automatic migration** handles schema updates for existing databases
 - **Thread-safe operations** ensure data consistency
 
-### Keep-Alive Functionality
-- **Extend validity** by clicking on approved reservations in the UI
-- **REST endpoint** `/reservation/keep_alive` for programmatic access
-- **Configurable duration** extends reservation by the same timeout period
-- **Real-time updates** reflect new expiration time immediately
-
 ### Architecture Benefits
+- **Flexible configuration**: Enable/disable expiration per reservation type
 - **Application-level management**: Expiration thread managed by ReserviaApp class
 - **Clean separation**: Database class focuses on data operations only
 - **Proper shutdown**: Thread cleanup on application termination
@@ -315,8 +342,10 @@ python app.py
 - Clean separation between data models and view components
 - Independent Resource class with static configuration
 - Dependency injection for view components
-- Real-time countdown timers for reservation expiration
-- Dual-timer system: 5-second server sync + 1-second UI updates
+- **Conditional countdown timers**: Display based on `valid_until_date` presence
+- **Dual-timer system**: 5-second server sync + 1-second UI updates
+- **Hover action interface**: Keep-alive and cancel/release actions for user's own reservations
+- **Multi-line layout**: Separate lines for user name and countdown timer when applicable
 
 ## Testing
 

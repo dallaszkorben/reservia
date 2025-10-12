@@ -97,6 +97,15 @@ reservia/
 - Transparent action button backgrounds for subtle UI integration
 - Enhanced user experience with intentional action requirements
 
+✅ **Phase 8 Complete**: Configurable Requested Reservation Expiration
+- Added `requested_keep_alive_sec` configuration option (default: 1800 seconds)
+- **Option 1**: When `requested_keep_alive_sec > 0` - requested reservations show countdown and auto-expire
+- **Option 2**: When `requested_keep_alive_sec = 0` or `None` - requested reservations have no expiration
+- Database schema updated: `valid_until_date` changed to nullable with automatic migration
+- Frontend conditional display: countdown/keep-alive only when `valid_until_date` is not null
+- Background expiration thread handles both approved and requested reservations
+- Keep-alive endpoint supports both approved and requested reservations with appropriate timeouts
+
 ## Implemented Features
 - `/info/is_alive` - Health check endpoint
 - `/info/get_version` - Version information endpoint
