@@ -4,6 +4,18 @@
 
 ## 🚀 Quick Start
 
+### Option 1: Docker (Recommended)
+```bash
+# Clone and run with Docker
+git clone https://github.com/dallaszkorben/reservia.git
+cd reservia
+docker compose up -d
+
+# Open browser
+open http://localhost:5050
+```
+
+### Option 2: Python Setup
 ```bash
 # Clone and setup
 git clone https://github.com/dallaszkorben/reservia.git
@@ -16,10 +28,12 @@ pip install -r requirements.txt
 python app.py
 
 # Open browser
-open http://localhost:5000
+open http://localhost:5050
 ```
 
 **Default Login**: Username: `admin`, Password: `admin`
+
+📋 **For detailed Docker setup instructions, see [DOCKER.md](docs/wiki/DOCKER.md)**
 
 ## ✨ Key Features
 
@@ -56,6 +70,7 @@ open http://localhost:5000
 - [✨ Key Features](#-key-features)
 - [📋 System Requirements](#-system-requirements)
 - [🔧 Installation & Setup](#-installation--setup)
+- [🐳 Docker Setup](docs/wiki/DOCKER.md) - Container deployment guide
 - [📚 API Documentation](#-api-documentation)
 - [🧪 Testing](#-testing)
 - [📁 Project Structure](#-project-structure)
@@ -379,13 +394,13 @@ To run backend tests, execute from the project root directory:
    ```bash
    # User management tests (database + API)
    python3 -m backend.tests.test_user_management
-   
+
    # Resource management tests (database + API)
    python3 -m backend.tests.test_resource_management
-   
+
    # Session management tests (database + API)
    python3 -m backend.tests.test_session_management
-   
+
    # Reservation system tests (database + API)
    python3 -m backend.tests.test_reservation_system
    ```

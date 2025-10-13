@@ -58,10 +58,7 @@ class ReserviaApp(Flask):
 
     def _configure_logging(self):
         """Configure application logging"""
-        HOME = str(Path.home())
-        FOLDER = "." + self.config_dict['app_name']
-        log_dir = os.path.join(HOME, FOLDER)
-
+        log_dir = self.config_dict['data_dir']
         os.makedirs(log_dir, exist_ok=True)
 
         log_file_path = os.path.join(log_dir, self.config_dict['log']['log_name'])

@@ -71,9 +71,7 @@ class Database:
         return Database._instance
 
     def _setup_database(self):
-        HOME = str(Path.home())
-        FOLDER = "." + self.config_dict['app_name']
-        db_dir = os.path.join(HOME, FOLDER)
+        db_dir = self.config_dict['data_dir']
         os.makedirs(db_dir, exist_ok=True)
 
         db_path = os.path.join(db_dir, self.config_dict['database']['name'])

@@ -7,6 +7,8 @@ __pycache__/
 *.so
 *.kate-swp
 
+cookie*.txt
+
 MEDIA
 
 # Distribution / packaging
@@ -67,6 +69,9 @@ db.sqlite3-journal
 # Flask stuff:
 instance/
 .webassets-cache
+
+# Reservia data directory (database and logs)
+data/
 
 # Scrapy stuff:
 .scrapy
