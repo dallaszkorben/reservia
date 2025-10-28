@@ -651,41 +651,7 @@ Expected response:
 {"message": "Reservation request successful", "reservation_id": 1, "resource_id": 1, "status": "approved"}
 ```
 
-#### Get Active Reservations (User Login Required)
-```bash
-curl -H "Content-Type: application/json" -X GET -b cookies.txt "http://localhost:5000/reservation/active?resource_id=1"
-```
-Expected response:
-```json
-{
-  "message": "Active reservations retrieved successfully",
-  "reservations": [
-    {
-      "id": 1,
-      "user_id": 2,
-      "user_name": "john",
-      "resource_id": 1,
-      "resource_name": "Meeting Room A",
-      "status": "approved",
-      "request_date": "2023-12-21T10:30:00+01:00",
-      "approved_date": "2023-12-21T10:30:00+01:00",
-      "valid_until_date": "2023-12-21T10:40:00+01:00"
-    },
-    {
-      "id": 2,
-      "user_id": 3,
-      "user_name": "jane",
-      "resource_id": 1,
-      "resource_name": "Meeting Room A",
-      "status": "requested",
-      "request_date": "2023-12-21T10:32:00+01:00",
-      "approved_date": null,
-      "valid_until_date": "2023-12-21T11:02:00+01:00"
-    }
-  ],
-  "count": 2
-}
-```
+
 
 #### Cancel Reservation (User Login Required)
 ```bash
@@ -714,14 +680,14 @@ Expected response:
 {"message": "Reservation kept alive successfully", "reservation_id": 1, "resource_id": 1, "valid_until_date": "2023-12-21T11:10:15+01:00"}
 ```
 
-#### Get All Users Reservation Status (Admin Only)
+#### Get All Active Reservations (User Login Required)
 ```bash
-curl -H "Content-Type: application/json" -X GET -b cookies.txt http://localhost:5000/reservation/status/all_users
+curl -H "Content-Type: application/json" -X GET -b cookies.txt http://localhost:5000/reservation/active/all_users
 ```
 Expected response:
 ```json
 {
-  "message": "All users reservation status retrieved successfully",
+  "message": "All active reservations retrieved successfully",
   "reservations": [
     {
       "id": 1,
@@ -750,14 +716,14 @@ Expected response:
 }
 ```
 
-#### Get User Reservation Status (User Login Required)
+#### Get User Active Reservation (User Login Required)
 ```bash
-curl -H "Content-Type: application/json" -X GET -b cookies.txt "http://localhost:5000/reservation/status/user?resource_id=1"
+curl -H "Content-Type: application/json" -X GET -b cookies.txt "http://localhost:5000/reservation/active/user?resource_id=1"
 ```
 Expected response (with reservation):
 ```json
 {
-  "message": "User reservation status retrieved successfully",
+  "message": "User active reservation retrieved successfully",
   "reservation": {
     "id": 1,
     "user_id": 2,
@@ -774,7 +740,7 @@ Expected response (with reservation):
 Expected response (no reservation):
 ```json
 {
-  "message": "User reservation status retrieved successfully",
+  "message": "User active reservation retrieved successfully",
   "reservation": null
 }
 ```

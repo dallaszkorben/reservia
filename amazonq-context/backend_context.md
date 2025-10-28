@@ -148,12 +148,11 @@ reservia/
 
 ### Reservation System
 - `/reservation/request` - Create reservation requests with auto-approval
-- `/reservation/active` - Get all active reservations for a resource
 - `/reservation/cancel` - Cancel user's queued reservation
 - `/reservation/release` - Release approved reservation
 - `/reservation/keep_alive` - Extend reservation validity (approved/requested)
-- `/reservation/status/all_users` - Admin overview of all active reservations
-- `/reservation/status/user` - Individual user's reservation status for a resource
+- `/reservation/active/all_users` - Get all active reservations across all resources (any user)
+- `/reservation/active/user` - Get user's active reservation for a specific resource (any user)
 
 ### System Architecture
 - **Database**: SQLite with SQLAlchemy ORM and SQL injection protection

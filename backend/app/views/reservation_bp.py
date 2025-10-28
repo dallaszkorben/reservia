@@ -216,85 +216,20 @@ class KeepAliveReservationView(BaseView):
             return jsonify({"error": "Internal server error"}), 500
 
 
-class GetActiveReservationsView(BaseView):
-    """Handles GET requests for retrieving active reservations for a specific resource.
+class GetAllUsersActiveReservationsView(BaseView):
+    """Handles GET requests for retrieving all active reservations across all resources.
 
-    Requires user authentication and resource_id query parameter. Returns non-cancelled,
-    non-released reservations for the specified resource with user and resource details.
-
-    Returns:
-        tuple: JSON response with reservations list and HTTP status code
-
-    Example:
-        curl -H "Content-Type: application/json" -X GET -b cookies.txt \
-             "http://localhost:5000/reservation/active?resource_id=1"
-    """
-    def get(self):
-        logging.info(f"{LOG_PREFIX_ENDPOINT}/reservation/active endpoint accessed")
-
-        try:
-            db = Database.get_instance()
-            current_user = db.get_current_user()
-
-            if not current_user:
-                return jsonify({"error": "Authentication required"}), 401
-
-            resource_id = request.args.get('resource_id')
-            if not resource_id:
-                return jsonify({"error": "resource_id parameter is required"}), 400
-
-            try:
-                resource_id = int(resource_id)
-            except ValueError:
-                return jsonify({"error": "resource_id must be a valid integer"}), 400
-
-            reservations = db.get_active_reservations(resource_id)
-
-            reservation_list = []
-            for r in reservations:
-#                # Check if relationships are loaded properly
-#                if not r.user or not r.resource:
-#                    logging.error(f"{LOG_PREFIX_ENDPOINT}Missing user or resource relationship for reservation {r.id}")
-#                    continue
-
-                reservation_list.append({
-                    "id": r.id,
-                    "user_id": r.user_id,
-                    "user_name": r.user.name,
-                    "resource_id": r.resource_id,
-                    "resource_name": r.resource.name,
-                    "request_date": epoch_to_iso8601(r.request_date),
-                    "approved_date": epoch_to_iso8601(r.approved_date) if r.approved_date else None,
-                    "valid_until_date": r.valid_until_date,
-                    "status": "approved" if r.approved_date else "requested"
-                })
-
-            return jsonify({
-                "message": "Active reservations retrieved successfully",
-                "reservations": reservation_list,
-                "count": len(reservation_list)
-            }), 200
-
-        except Exception as e:
-            logging.error(f"{LOG_PREFIX_ENDPOINT}Error in get_active_reservations: {str(e)}")
-            return jsonify({"error": "Internal server error"}), 500
-
-
-class GetAllUsersReservationStatusView(BaseView):
-    """Handles GET requests for retrieving reservation status for all users.
-
-    Requires admin authentication. Returns all active reservations across all resources
-    with user and resource details.
+    Requires user authentication. Returns all active reservations with user and resource details.
 
     Returns:
         tuple: JSON response with all reservations and HTTP status code
 
     Example:
         curl -H "Content-Type: application/json" -X GET -b cookies.txt \
-             http://localhost:5000/reservation/status/all_users
+             http://localhost:5000/reservation/active/all_users
     """
     def get(self):
-        logging.info(f"{LOG_PREFIX_ENDPOINT}/reservation/status/all_users endpoint accessed")
+        logging.info(f"{LOG_PREFIX_ENDPOINT}/reservation/active/all_users endpoint accessed")
 
         try:
             db = Database.get_instance()
@@ -302,10 +237,6 @@ class GetAllUsersReservationStatusView(BaseView):
 
             if not current_user:
                 return jsonify({"error": "Authentication required"}), 401
-
-            # Check admin access
-            if not db._has_admin_access(current_user):
-                return jsonify({"error": "Admin access required"}), 403
 
             # Get all active reservations across all resources
             with db.lock:
@@ -329,18 +260,18 @@ class GetAllUsersReservationStatusView(BaseView):
                 })
 
             return jsonify({
-                "message": "All users reservation status retrieved successfully",
+                "message": "All active reservations retrieved successfully",
                 "reservations": reservation_list,
                 "count": len(reservation_list)
             }), 200
 
         except Exception as e:
-            logging.error(f"{LOG_PREFIX_ENDPOINT}Error in get_all_users_reservation_status: {str(e)}")
+            logging.error(f"{LOG_PREFIX_ENDPOINT}Error in get_all_users_active_reservations: {str(e)}")
             return jsonify({"error": "Internal server error"}), 500
 
 
-class GetUserReservationStatusView(BaseView):
-    """Handles GET requests for retrieving current user's reservation status for a specific resource.
+class GetUserActiveReservationView(BaseView):
+    """Handles GET requests for retrieving current user's active reservation for a specific resource.
 
     Requires user authentication and resource_id query parameter. Returns the logged-in user's
     active reservation for the specified resource, or null if no active reservation exists.
@@ -350,10 +281,10 @@ class GetUserReservationStatusView(BaseView):
 
     Example:
         curl -H "Content-Type: application/json" -X GET -b cookies.txt \
-             "http://localhost:5000/reservation/status/user?resource_id=1"
+             "http://localhost:5000/reservation/active/user?resource_id=1"
     """
     def get(self):
-        logging.info(f"{LOG_PREFIX_ENDPOINT}/reservation/status/user endpoint accessed")
+        logging.info(f"{LOG_PREFIX_ENDPOINT}/reservation/active/user endpoint accessed")
 
         try:
             db = Database.get_instance()
@@ -396,12 +327,12 @@ class GetUserReservationStatusView(BaseView):
                 reservation_data = None
 
             return jsonify({
-                "message": "User reservation status retrieved successfully",
+                "message": "User active reservation retrieved successfully",
                 "reservation": reservation_data
             }), 200
 
         except Exception as e:
-            logging.error(f"{LOG_PREFIX_ENDPOINT}Error in get_user_reservation_status: {str(e)}")
+            logging.error(f"{LOG_PREFIX_ENDPOINT}Error in get_user_active_reservation: {str(e)}")
             return jsonify({"error": "Internal server error"}), 500
 
 
@@ -412,12 +343,11 @@ class ReservationBlueprintManager:
 
     def _register_routes(self):
         self.blueprint.add_url_rule('/request', view_func=RequestReservationView.as_view('request'))
-        self.blueprint.add_url_rule('/active', view_func=GetActiveReservationsView.as_view('active'))
         self.blueprint.add_url_rule('/cancel', view_func=CancelReservationView.as_view('cancel'))
         self.blueprint.add_url_rule('/release', view_func=ReleaseReservationView.as_view('release'))
         self.blueprint.add_url_rule('/keep_alive', view_func=KeepAliveReservationView.as_view('keep_alive'))
-        self.blueprint.add_url_rule('/status/all_users', view_func=GetAllUsersReservationStatusView.as_view('status_all_users'))
-        self.blueprint.add_url_rule('/status/user', view_func=GetUserReservationStatusView.as_view('status_user'))
+        self.blueprint.add_url_rule('/active/all_users', view_func=GetAllUsersActiveReservationsView.as_view('active_all_users'))
+        self.blueprint.add_url_rule('/active/user', view_func=GetUserActiveReservationView.as_view('active_user'))
 
     def get_blueprint(self):
         return self.blueprint
