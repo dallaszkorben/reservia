@@ -191,11 +191,12 @@ pool.updateLayout();
 - JavaScript-controlled styling overrides CSS for dynamic configuration
 
 ### Resource Modification Workflow
-**Features**: Complete admin resource modification system
+**Features**: Complete admin/super resource modification system
 - Hover-based submenu: "Manage Resource" → "Modify >" → resource list
 - Direct resource selection opens modify dialog
 - REST API integration with `/admin/resource/modify` endpoint
 - Proper z-index layering for nested dropdowns
+- Role-based UI visibility (admin/super roles only)
 
 ## Test Data Generation
 

@@ -90,7 +90,7 @@ class SessionStatus(BaseView):
                 'user_id': user_data.get('user_id'),
                 'user_email': user_data.get('user_email'),
                 'user_name': user_data.get('user_name'),
-                'is_admin': user_data.get('is_admin')
+                'role': user_data.get('role')
             }), 200
         else:
             return jsonify({'logged_in': False}), 401

@@ -39,7 +39,7 @@ open http://localhost:5050
 
 - 🎯 **Real-time Resource Management** - Live availability tracking
 - 🔄 **Automatic Queue System** - Fair resource allocation
-- 👥 **Multi-user Support** - Admin and regular user roles
+- 👥 **Multi-user Support** - Role-based access control (user, admin, super)
 - 🔒 **Secure Authentication** - SHA-256 password hashing
 - 📱 **Responsive Design** - Works on desktop and mobile
 - ⚡ **Auto-refresh Interface** - Real-time updates without page reload
@@ -124,7 +124,7 @@ open http://localhost:5050
 - **Manage users** - Create, modify, delete accounts
 - **Manage resources** - Add/remove bookable items
 - **Monitor activity** - View all reservations and queues
-- **Visual indicator** - Red header shows admin status
+- **Visual indicator** - Red header shows admin/super status
 
 ## 🔑 Technology Stack
 
@@ -235,7 +235,7 @@ python app.py
 - `id` (INTEGER, Primary Key, Auto-increment)
 - `email` (TEXT, Unique, NOT NULL)
 - `name` (TEXT, NOT NULL)
-- `is_admin` (BOOLEAN, Default: False, NOT NULL)
+- `role` (TEXT, Default: 'user', NOT NULL) - Values: 'user', 'admin', 'super'
 
 ### Resources Table
 - `id` (INTEGER, Primary Key, Auto-increment)
@@ -630,7 +630,7 @@ curl -H "Content-Type: application/json" -X GET -b cookies.txt http://localhost:
 ```
 Expected response:
 ```json
-{"message": "Users retrieved successfully", "users": [{"id": 1, "name": "admin", "email": "admin@example.com", "is_admin": true}], "count": 1}
+{"message": "Users retrieved successfully", "users": [{"id": 1, "name": "admin", "email": "admin@example.com", "role": "admin"}], "count": 1}
 ```
 
 #### Get All Resources
@@ -693,7 +693,7 @@ curl -b cookies.txt http://localhost:5000/session/status
 ```
 Expected response (logged in):
 ```json
-{"logged_in": true, "user_id": 1, "user_email": "admin@example.com", "user_name": "admin", "is_admin": true}
+{"logged_in": true, "user_id": 1, "user_email": "admin@example.com", "user_name": "admin", "role": "admin"}
 ```
 Expected response (logged out):
 ```json

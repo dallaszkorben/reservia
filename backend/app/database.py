@@ -3,7 +3,7 @@ import logging
 import hashlib
 import threading
 from pathlib import Path
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Boolean, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from .constants import LOG_PREFIX_DATABASE
@@ -19,7 +19,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     email = Column(String, unique=True, nullable=False)
     name = Column(String, unique=True, nullable=False)
-    is_admin = Column(Boolean, default=False, nullable=False)
+    role = Column(String, default='user', nullable=False)
 
 class Resource(Base):
     __tablename__ = 'resources'
@@ -89,7 +89,7 @@ class Database:
         with self.lock:
             existing_admin = self.session.query(User).filter(User.email == "admin@admin.se").first()
             if not existing_admin:
-                admin_user = User(name="admin", email="admin@admin.se", is_admin=True)
+                admin_user = User(name="admin", email="admin@admin.se", role="admin")
                 self.session.add(admin_user)
                 self.session.flush()
 
@@ -102,21 +102,44 @@ class Database:
                 logging.info(f"{LOG_PREFIX_DATABASE}Default admin user created with password hash: {encoded_password[:10]}...")
 
     def _migrate_database_if_needed(self):
-        """Handle database schema migrations for valid_until_date nullable change"""
+        """Handle database schema migrations for role field and valid_until_date nullable change"""
         with self.lock:
+            # Check if role column exists (migration from is_admin to role)
             try:
-                # Check if we need to migrate by trying to insert a NULL value
-                # This is a simple way to detect if the column is already nullable
+                test_role_query = "SELECT role FROM users LIMIT 1"
+                self.session.execute(test_role_query)
+                logging.info(f"{LOG_PREFIX_DATABASE}Role column exists")
+            except Exception:
+                # Role column doesn't exist, need to migrate from is_admin
+                logging.info(f"{LOG_PREFIX_DATABASE}Migrating database schema from is_admin to role")
+                try:
+                    # For SQLite, recreate users table with new schema
+                    # First backup existing data
+                    users_data = self.session.execute(text("SELECT id, email, name, is_admin FROM users")).fetchall()
+                    
+                    # Drop and recreate users table
+                    Base.metadata.drop_all(self.engine, tables=[User.__table__])
+                    Base.metadata.create_all(self.engine, tables=[User.__table__])
+                    
+                    # Restore data with role conversion
+                    for user_data in users_data:
+                        role = 'admin' if user_data[3] else 'user'  # is_admin -> role
+                        new_user = User(id=user_data[0], email=user_data[1], name=user_data[2], role=role)
+                        self.session.merge(new_user)
+                    
+                    self.session.commit()
+                    logging.info(f"{LOG_PREFIX_DATABASE}Role migration completed")
+                except Exception as e:
+                    logging.warning(f"{LOG_PREFIX_DATABASE}Role migration failed: {e}")
+            
+            # Check valid_until_date nullable migration
+            try:
                 test_query = "SELECT valid_until_date FROM reservation_lifecycle WHERE valid_until_date IS NULL LIMIT 1"
                 self.session.execute(test_query)
                 logging.info(f"{LOG_PREFIX_DATABASE}Database schema is up to date")
             except Exception:
-                # If query fails, the column might not be nullable yet
-                # For SQLite, we need to recreate the table to change nullable constraint
                 logging.info(f"{LOG_PREFIX_DATABASE}Migrating database schema for nullable valid_until_date")
                 try:
-                    # SQLite doesn't support ALTER COLUMN, so we recreate the table
-                    # The new schema will be applied automatically by SQLAlchemy
                     Base.metadata.drop_all(self.engine, tables=[ReservationLifecycle.__table__])
                     Base.metadata.create_all(self.engine, tables=[ReservationLifecycle.__table__])
                     logging.info(f"{LOG_PREFIX_DATABASE}Database migration completed")
@@ -170,7 +193,7 @@ class Database:
                 'user_id': user.id,
                 'user_email': user.email,
                 'user_name': user.name,
-                'is_admin': bool(user.is_admin)
+                'role': user.role
             }
             session.permanent = True
 
@@ -195,6 +218,19 @@ class Database:
                 return None
             logging.info(f"{LOG_PREFIX_DATABASE}User is currently logged in")
             return session['logged_in_user']
+
+    def _has_admin_access(self, current_user):
+        """Check if user has admin or super role"""
+        if not current_user:
+            return False
+        role = current_user.get('role', 'user')
+        return role in ['admin', 'super']
+
+    def _has_super_access(self, current_user):
+        """Check if user has super role"""
+        if not current_user:
+            return False
+        return current_user.get('role', 'user') == 'super'
 
     # === Users ===
 
@@ -221,9 +257,9 @@ class Database:
             else:
                 print(f"User creation failed: {error_msg}")
         """
-        # Only admin can create users
+        # Only admin/super can create users
         current_user = self.get_current_user()
-        if not current_user or not current_user.get('is_admin', False):
+        if not self._has_admin_access(current_user):
             logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized user creation attempt")
             return False, None, "UNAUTHORIZED", "Admin access required"
 
@@ -274,8 +310,8 @@ class Database:
             logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized user modification - user not logged in")
             return False, None, "UNAUTHORIZED", "User authentication required"
 
-        # Admin can modify any user, regular user can only modify self
-        if not current_user.get('is_admin', False) and current_user['user_id'] != user_id:
+        # Admin/super can modify any user, regular user can only modify self
+        if not self._has_admin_access(current_user) and current_user['user_id'] != user_id:
             logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized user modification - user {current_user['user_id']} cannot modify user {user_id}")
             return False, None, "UNAUTHORIZED", "Cannot modify other users"
 
@@ -351,7 +387,7 @@ class Database:
                 - error_message (str|None): Human-readable error message on failure, None on success
         """
         current_user = self.get_current_user()
-        if not current_user or not current_user.get('is_admin', False):
+        if not self._has_admin_access(current_user):
             logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized user list access - admin access required")
             return False, None, "UNAUTHORIZED", "Admin access required"
 
@@ -362,7 +398,7 @@ class Database:
                     'id': user.id,
                     'name': user.name,
                     'email': user.email,
-                    'is_admin': user.is_admin
+                    'role': user.role
                 } for user in users]
                 logging.info(f"{LOG_PREFIX_DATABASE}Retrieved {len(user_list)} users for admin")
                 return True, user_list, None, None
@@ -394,9 +430,9 @@ class Database:
             else:
                 print(f"Resource creation failed: {error_msg}")
         """
-        # Only admin can create resources
+        # Only admin/super can create resources
         current_user = self.get_current_user()
-        if not current_user or not current_user.get('is_admin', False):
+        if not self._has_admin_access(current_user):
             logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized resource creation attempt")
             return False, None, "UNAUTHORIZED", "Admin access required"
 
@@ -433,7 +469,7 @@ class Database:
                 - error_message (str|None): Human-readable error message on failure, None on success
         """
         current_user = self.get_current_user()
-        if not current_user or not current_user.get('is_admin', False):
+        if not self._has_admin_access(current_user):
             logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized resource modification - admin access required")
             return False, None, "UNAUTHORIZED", "Admin access required"
 
@@ -542,7 +578,7 @@ class Database:
 
             # Create new reservation lifecycle record
             request_epoch = get_current_epoch()
-            
+
             # Set valid_until_date based on configuration
             requested_keep_alive = CONFIG.get('requested_keep_alive_sec', 0)
             if requested_keep_alive and requested_keep_alive > 0:
@@ -551,7 +587,7 @@ class Database:
             else:
                 # Option 2: No expiration for queued reservations (None = no countdown)
                 valid_until = None
-            
+
             reservation = ReservationLifecycle(
                 user_id=user_id,
                 resource_id=resource_id,
@@ -777,7 +813,7 @@ class Database:
                 else:
                     logging.error(f"{LOG_PREFIX_DATABASE}Keep alive not supported for requested reservations (requested_keep_alive_sec not configured)")
                     return False, None, "KEEP_ALIVE_NOT_SUPPORTED", "Keep alive not supported for requested reservations"
-            
+
             self.session.commit()
 
             # Logging
@@ -798,7 +834,7 @@ class Database:
         """
         with self.lock:
             current_epoch = get_current_epoch()
-            
+
             # Handle expired approved reservations (release them)
             expired_approved = self.session.query(ReservationLifecycle).filter(
                 ReservationLifecycle.approved_date.isnot(None),
@@ -806,12 +842,12 @@ class Database:
                 ReservationLifecycle.released_date.is_(None),
                 ReservationLifecycle.valid_until_date < current_epoch
             ).all()
-            
+
             for reservation in expired_approved:
                 # Release the expired reservation
                 release_epoch = get_current_epoch()
                 reservation.released_date = release_epoch
-                
+
                 # Find next queued user for auto-approval
                 next_reservation = self.session.query(ReservationLifecycle).filter(
                     ReservationLifecycle.resource_id == reservation.resource_id,
@@ -820,21 +856,21 @@ class Database:
                     ReservationLifecycle.released_date.is_(None),
                     ReservationLifecycle.request_date >= reservation.request_date
                 ).order_by(ReservationLifecycle.request_date.asc()).first()
-                
+
                 # Auto-approve next user if exists
                 if next_reservation:
                     next_reservation.approved_date = release_epoch
                     next_reservation.valid_until_date = release_epoch + CONFIG['approved_keep_alive_sec']
                     next_user = self.session.query(User).filter(User.id == next_reservation.user_id).first()
                     logging.info(f"{LOG_PREFIX_DATABASE}Auto-approved next user: {next_reservation.user_id} ({next_user.name}) for Resource {reservation.resource_id}")
-                
+
                 # Logging
                 release_iso = epoch_to_iso8601(release_epoch)
                 user = self.session.query(User).filter(User.id == reservation.user_id).first()
                 user_name = user.name if user else "Unknown"
                 resource_name = reservation.resource.name
                 logging.info(f"{LOG_PREFIX_DATABASE}Reservation auto-expired: User {reservation.user_id} ({user_name}) for Resource {reservation.resource_id} ({resource_name}) at {release_iso}")
-            
+
             # Handle expired requested reservations (cancel them) - only if requested_keep_alive_sec > 0
             requested_keep_alive = CONFIG.get('requested_keep_alive_sec', 0)
             expired_requested = []
@@ -846,19 +882,19 @@ class Database:
                     ReservationLifecycle.valid_until_date.isnot(None),
                     ReservationLifecycle.valid_until_date < current_epoch
                 ).all()
-                
+
                 for reservation in expired_requested:
                     # Cancel the expired requested reservation
                     cancel_epoch = get_current_epoch()
                     reservation.cancelled_date = cancel_epoch
-                    
+
                     # Logging
                     cancel_iso = epoch_to_iso8601(cancel_epoch)
                     user = self.session.query(User).filter(User.id == reservation.user_id).first()
                     user_name = user.name if user else "Unknown"
                     resource_name = reservation.resource.name
                     logging.info(f"{LOG_PREFIX_DATABASE}Requested reservation auto-expired: User {reservation.user_id} ({user_name}) for Resource {reservation.resource_id} ({resource_name}) at {cancel_iso}")
-            
+
             total_expired = len(expired_approved) + (len(expired_requested) if requested_keep_alive and requested_keep_alive > 0 else 0)
             if total_expired > 0:
                 self.session.commit()

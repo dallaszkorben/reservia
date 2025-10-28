@@ -77,7 +77,7 @@ class AuthManager {
         $('#logout-btn').removeClass('hidden');
         $('#modify-btn').removeClass('hidden');
         
-        if (response.is_admin) {
+        if (SessionManager.isAdmin()) {
             $('#manage-resource-container').removeClass('hidden');
             $('#manage-user-container').removeClass('hidden');
         } else {
@@ -85,7 +85,7 @@ class AuthManager {
             $('#manage-user-container').addClass('hidden');
         }
         
-        const tooltipContent = `<b>${response.user_name}</b><br>user_id: ${response.user_id}<br>user_email: ${response.user_email}<br>is_admin: ${response.is_admin}`;
+        const tooltipContent = `<b>${response.user_name}</b><br>user_id: ${response.user_id}<br>user_email: ${response.user_email}<br>role: ${response.role}`;
         $('#logout-btn').attr('title', tooltipContent).tooltip({
             content: tooltipContent,
             position: { my: "left top+15", at: "left bottom" }

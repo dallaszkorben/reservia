@@ -62,6 +62,7 @@ reservia/
 - Proper session invalidation on logout (cookie expiration)
 - Admin-only user and resource creation endpoints
 - Default admin user creation (admin/admin)
+- Role-based access control system (user, admin, super)
 
 ✅ **Phase 4 Complete**: Reservation System
 - Complete reservation lifecycle: request → approve → release/cancel
@@ -76,7 +77,7 @@ reservia/
 - `/admin/resource/modify` - Admin-only resource modification endpoint
 - `/admin/user/modify` - Admin and self-user modification endpoint
 - Complete CRUD operations for resources and users
-- Proper authorization checks (admin-only vs self-modification)
+- Role-based authorization checks (admin/super vs self-modification)
 - Comprehensive test coverage for all modification endpoints
 
 ✅ **Phase 6 Complete**: Reservation Expiration & Keep-Alive System
@@ -87,6 +88,7 @@ reservia/
 - Application-level thread management (moved from Database to ReserviaApp class)
 - Real-time countdown display in frontend with dual-timer system
 - Authentication refactoring: moved from database to endpoint level
+- Role-based authorization system with automatic migration from is_admin field
 - Comprehensive test coverage for keep-alive functionality
 
 ✅ **Phase 7 Complete**: Hover Action Interface
@@ -111,11 +113,11 @@ reservia/
 - `/info/get_version` - Version information endpoint
 - `/session/login` - User authentication with session creation
 - `/session/logout` - Session termination with cookie invalidation
-- `/session/status` - Check current session status
-- `/admin/user/add` - Admin-only user creation
-- `/admin/user/modify` - Admin can modify any user, user can modify self
-- `/admin/resource/add` - Admin-only resource creation
-- `/admin/resource/modify` - Admin-only resource modification
+- `/session/status` - Check current session status with role information
+- `/admin/user/add` - Admin/super-only user creation
+- `/admin/user/modify` - Admin/super can modify any user, user can modify self
+- `/admin/resource/add` - Admin/super-only resource creation
+- `/admin/resource/modify` - Admin/super-only resource modification
 - `/info/resources` - Get all resources
 - `/reservation/request` - Create reservation requests with auto-approval
 - `/reservation/active` - Get all active reservations
@@ -133,6 +135,8 @@ reservia/
 - Background thread monitoring for expired reservations
 - Keep-alive functionality for extending reservation validity
 - Application-level thread management with proper shutdown handling
+- Role-based access control with three-tier system (user, admin, super)
+- Automatic database migration from is_admin boolean to role string field
 
 ## Next Steps
 - Frontend templates and forms

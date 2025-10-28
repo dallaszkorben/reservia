@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM armdocker.rnd.ericsson.se/dockerhub-ericsson-remote/python:3.8-bullseye
 
 WORKDIR /app
 

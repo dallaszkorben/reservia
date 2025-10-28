@@ -58,7 +58,7 @@ class InfoResourceList(BaseView):
 class InfoUserList(BaseView):
     """Handles GET requests for retrieving all users (admin only).
 
-    Returns all users in the system with id, name, email, and is_admin fields.
+    Returns all users in the system with id, name, email, and role fields.
     Only accessible by admin users.
 
     Returns:

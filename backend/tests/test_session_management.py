@@ -41,19 +41,30 @@ def hash_password(password):
 def cleanup_test_databases():
     """Clean up test database files and reset singleton"""
     if Database._instance is not None:
-        Database._instance.session.close()
-        Database._instance.engine.dispose()
+        try:
+            Database._instance.session.close()
+            Database._instance.engine.dispose()
+        except:
+            pass
 
     for handler in logging.root.handlers[:]:
-        handler.close()
-        logging.root.removeHandler(handler)
+        try:
+            handler.close()
+            logging.root.removeHandler(handler)
+        except:
+            pass
 
     Database._instance = None
-    time.sleep(0.1)
+    time.sleep(0.2)
 
     test_path = os.path.join(HOME, TEST_DIR_NAME)
     if os.path.exists(test_path):
-        shutil.rmtree(test_path)
+        try:
+            shutil.rmtree(test_path)
+        except OSError:
+            # Force removal if normal removal fails
+            import subprocess
+            subprocess.run(['rm', '-rf', test_path], check=False)
 
 # === Database Layer Tests ===
 
@@ -69,8 +80,10 @@ def test_db_session_login_logout():
     config_dict = {
         'app_name': TEST_APP_NAME,
         'version': '1.0.0',
+        'data_dir': os.path.join(HOME, TEST_DIR_NAME),
         'log': {'log_name': 'test.log', 'level': 'DEBUG', 'backupCount': 1},
         'database': {'name': TEST_DB_NAME},
+        'data_dir': os.path.join(HOME, TEST_DIR_NAME)
     }
 
     app = ReserviaApp(config_dict)
@@ -132,8 +145,10 @@ def test_db_authentication():
     config_dict = {
         'app_name': TEST_APP_NAME,
         'version': '1.0.0',
+        'data_dir': os.path.join(HOME, TEST_DIR_NAME),
         'log': {'log_name': 'test.log', 'level': 'DEBUG', 'backupCount': 1},
-        'database': {'name': TEST_DB_NAME}
+        'database': {'name': TEST_DB_NAME},
+        'data_dir': os.path.join(HOME, TEST_DIR_NAME)
     }
 
     app = ReserviaApp(config_dict)
@@ -183,8 +198,10 @@ def test_api_session_login():
     config_dict = {
         'app_name': TEST_APP_NAME,
         'version': '1.0.0',
+        'data_dir': os.path.join(HOME, TEST_DIR_NAME),
         'log': {'log_name': 'test.log', 'level': 'DEBUG', 'backupCount': 1},
-        'database': {'name': TEST_DB_NAME}
+        'database': {'name': TEST_DB_NAME},
+        'data_dir': os.path.join(HOME, TEST_DIR_NAME)
     }
 
     app = ReserviaApp(config_dict)
@@ -242,8 +259,10 @@ def test_api_session_logout():
     config_dict = {
         'app_name': TEST_APP_NAME,
         'version': '1.0.0',
+        'data_dir': os.path.join(HOME, TEST_DIR_NAME),
         'log': {'log_name': 'test.log', 'level': 'DEBUG', 'backupCount': 1},
-        'database': {'name': TEST_DB_NAME}
+        'database': {'name': TEST_DB_NAME},
+        'data_dir': os.path.join(HOME, TEST_DIR_NAME)
     }
 
     app = ReserviaApp(config_dict)
@@ -283,8 +302,10 @@ def test_api_session_status():
     config_dict = {
         'app_name': TEST_APP_NAME,
         'version': '1.0.0',
+        'data_dir': os.path.join(HOME, TEST_DIR_NAME),
         'log': {'log_name': 'test.log', 'level': 'DEBUG', 'backupCount': 1},
-        'database': {'name': TEST_DB_NAME}
+        'database': {'name': TEST_DB_NAME},
+        'data_dir': os.path.join(HOME, TEST_DIR_NAME)
     }
 
     app = ReserviaApp(config_dict)
@@ -311,7 +332,7 @@ def test_api_session_status():
         assert data['logged_in'] == True
         assert data['user_name'] == 'admin'
         assert data['user_email'] == 'admin@admin.se'
-        assert data['is_admin'] == True
+        assert data['role'] == 'admin'
         assert 'user_id' in data
 
         operation += 1
@@ -331,7 +352,7 @@ def test_api_session_status():
         assert data['logged_in'] == True
         assert data['user_name'] == 'testuser'
         assert data['user_email'] == 'test@example.com'
-        assert data['is_admin'] == False
+        assert data['role'] == 'user'
 
     print(f"{GREEN}API session status tests passed!{RESET}")
 

@@ -12,7 +12,7 @@ window.SessionManager = {
         user_id: null,
         user_name: null,
         user_email: null,
-        is_admin: false
+        role: 'user'
     },
 
     /**
@@ -24,7 +24,7 @@ window.SessionManager = {
             user_id: response.user_id || null,
             user_name: response.user_name || null,
             user_email: response.user_email || null,
-            is_admin: response.is_admin || false
+            role: response.role || 'user'
         };
         this.updateAdminWarning();
     },
@@ -38,7 +38,7 @@ window.SessionManager = {
             user_id: null,
             user_name: null,
             user_email: null,
-            is_admin: false
+            role: 'user'
         };
         this.updateAdminWarning();
     },
@@ -63,7 +63,15 @@ window.SessionManager = {
     },
 
     isAdmin() {
-        return this.data.is_admin;
+        return this.data.role === 'admin' || this.data.role === 'super';
+    },
+
+    isSuper() {
+        return this.data.role === 'super';
+    },
+
+    getRole() {
+        return this.data.role;
     },
 
     /**
@@ -72,7 +80,7 @@ window.SessionManager = {
     updateAdminWarning() {
         const header = document.getElementById('header');
         if (header) {
-            if (this.data.logged_in && this.data.is_admin) {
+            if (this.data.logged_in && this.isAdmin()) {
                 header.classList.add('admin-warning');
             } else {
                 header.classList.remove('admin-warning');
