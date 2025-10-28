@@ -657,7 +657,34 @@ curl -H "Content-Type: application/json" -X GET -b cookies.txt "http://localhost
 ```
 Expected response:
 ```json
-{"message": "Active reservations retrieved successfully", "reservations": [...], "count": 2}
+{
+  "message": "Active reservations retrieved successfully",
+  "reservations": [
+    {
+      "id": 1,
+      "user_id": 2,
+      "user_name": "john",
+      "resource_id": 1,
+      "resource_name": "Meeting Room A",
+      "status": "approved",
+      "request_date": "2023-12-21T10:30:00+01:00",
+      "approved_date": "2023-12-21T10:30:00+01:00",
+      "valid_until_date": "2023-12-21T10:40:00+01:00"
+    },
+    {
+      "id": 2,
+      "user_id": 3,
+      "user_name": "jane",
+      "resource_id": 1,
+      "resource_name": "Meeting Room A",
+      "status": "requested",
+      "request_date": "2023-12-21T10:32:00+01:00",
+      "approved_date": null,
+      "valid_until_date": "2023-12-21T11:02:00+01:00"
+    }
+  ],
+  "count": 2
+}
 ```
 
 #### Cancel Reservation (User Login Required)

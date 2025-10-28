@@ -82,7 +82,6 @@ class Database:
         self.session = Session()
 
         self._create_default_admin()
-        self._migrate_database_if_needed()
         logging.info(f"{LOG_PREFIX_DATABASE}Database initialized at {db_path}")
 
     def _create_default_admin(self):
@@ -101,50 +100,21 @@ class Database:
 
                 logging.info(f"{LOG_PREFIX_DATABASE}Default admin user created with password hash: {encoded_password[:10]}...")
 
-    def _migrate_database_if_needed(self):
-        """Handle database schema migrations for role field and valid_until_date nullable change"""
-        with self.lock:
-            # Check if role column exists (migration from is_admin to role)
-            try:
-                test_role_query = "SELECT role FROM users LIMIT 1"
-                self.session.execute(test_role_query)
-                logging.info(f"{LOG_PREFIX_DATABASE}Role column exists")
-            except Exception:
-                # Role column doesn't exist, need to migrate from is_admin
-                logging.info(f"{LOG_PREFIX_DATABASE}Migrating database schema from is_admin to role")
-                try:
-                    # For SQLite, recreate users table with new schema
-                    # First backup existing data
-                    users_data = self.session.execute(text("SELECT id, email, name, is_admin FROM users")).fetchall()
-                    
-                    # Drop and recreate users table
-                    Base.metadata.drop_all(self.engine, tables=[User.__table__])
-                    Base.metadata.create_all(self.engine, tables=[User.__table__])
-                    
-                    # Restore data with role conversion
-                    for user_data in users_data:
-                        role = 'admin' if user_data[3] else 'user'  # is_admin -> role
-                        new_user = User(id=user_data[0], email=user_data[1], name=user_data[2], role=role)
-                        self.session.merge(new_user)
-                    
-                    self.session.commit()
-                    logging.info(f"{LOG_PREFIX_DATABASE}Role migration completed")
-                except Exception as e:
-                    logging.warning(f"{LOG_PREFIX_DATABASE}Role migration failed: {e}")
-            
-            # Check valid_until_date nullable migration
-            try:
-                test_query = "SELECT valid_until_date FROM reservation_lifecycle WHERE valid_until_date IS NULL LIMIT 1"
-                self.session.execute(test_query)
-                logging.info(f"{LOG_PREFIX_DATABASE}Database schema is up to date")
-            except Exception:
-                logging.info(f"{LOG_PREFIX_DATABASE}Migrating database schema for nullable valid_until_date")
-                try:
-                    Base.metadata.drop_all(self.engine, tables=[ReservationLifecycle.__table__])
-                    Base.metadata.create_all(self.engine, tables=[ReservationLifecycle.__table__])
-                    logging.info(f"{LOG_PREFIX_DATABASE}Database migration completed")
-                except Exception as e:
-                    logging.warning(f"{LOG_PREFIX_DATABASE}Database migration failed, continuing with existing schema: {e}")
+            existing_super = self.session.query(User).filter(User.email == "super@super.se").first()
+            if not existing_super:
+                super_user = User(name="super", email="super@super.se", role="super")
+                self.session.add(super_user)
+                self.session.flush()
+
+                # Pre-hashed password for "super" (client-side hashed)
+                encoded_password = hashlib.sha256("super".encode()).hexdigest()
+                password_entry = Password(user_id=super_user.id, password=encoded_password)
+                self.session.add(password_entry)
+                self.session.commit()
+
+                logging.info(f"{LOG_PREFIX_DATABASE}Default super user created with password hash: {encoded_password[:10]}...")
+
+
 
     # === Session ===
 
