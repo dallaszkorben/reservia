@@ -169,34 +169,73 @@ reservia/
 │   │   ├── views/           # Flask blueprints and endpoints
 │   │   │   ├── base_view.py     # Base view class for inheritance
 │   │   │   ├── home_bp.py       # Home blueprint manager
-│   │   │   └── info_bp.py       # Info blueprint manager
-│   │   ├── models/          # SQLAlchemy database models
+│   │   │   ├── info_bp.py       # Info blueprint manager
+│   │   │   ├── session_bp.py    # Session management endpoints
+│   │   │   ├── user_bp.py       # User management endpoints
+│   │   │   ├── resource_bp.py   # Resource management endpoints
+│   │   │   └── reservation_bp.py # Reservation management endpoints
 │   │   ├── application.py   # Main ReserviaApp class
 │   │   ├── constants.py     # Global constants (log prefixes)
 │   │   ├── database.py      # Database singleton class
+│   │   ├── utils.py         # Utility functions
 │   │   └── __init__.py      # Package initialization
-│   └── config/          # Backend configuration files
+│   ├── config/
+│   │   └── config.py        # Backend configuration settings
+│   └── tests/               # Backend test suite (organized by functional area)
+│       ├── test_user_management.py     # User operations (database + API)
+│       ├── test_resource_management.py # Resource operations (database + API)
+│       ├── test_session_management.py  # Authentication and sessions (database + API)
+│       ├── test_reservation_system.py  # Reservation lifecycle (database + API)
+│       ├── test_expiration_system.py   # Reservation expiration testing
+│       └── run_all_tests.py            # Master test runner with reporting
 ├── frontend/
-│   ├── templates/       # HTML templates
-│   └── static/          # CSS, JavaScript, images
-├── tests/                   # Legacy test directory
-├── backend/tests/           # Backend test suite (organized by functional area)
-│   ├── test_user_management.py     # User operations (database + API)
-│   ├── test_resource_management.py # Resource operations (database + API)
-│   ├── test_session_management.py  # Authentication and sessions (database + API)
-│   ├── test_reservation_system.py  # Reservation lifecycle (database + API)
-│   └── run_all_tests.py            # Master test runner with reporting
-├── frontend/tests/          # Frontend test directory (manual testing)
+│   ├── templates/
+│   │   ├── index.html       # Main application interface
+│   │   └── index_original.html # Original template backup
+│   └── static/
+│       ├── css/             # Stylesheets
+│       ├── js/              # JavaScript files
+│       └── favicon.ico      # Site icon
+├── integration/             # API integration examples
+│   ├── reservia_integration.py # Complete Python workflow
+│   ├── mock_script.py       # Sample workload script
+│   └── README.md            # Integration documentation
+├── admin_tools/             # Database administration scripts
+│   ├── create_user.py       # Create new user
+│   ├── create_admin_user.py # Create admin user
+│   ├── create_super_user.py # Create super user
+│   ├── create_resource.py   # Create new resource
+│   ├── delete_user.py       # Delete user
+│   ├── check_users.py       # List all users
+│   ├── check_resources.py   # List all resources
+│   ├── check_reservations.py # List all reservations
+│   └── README.md            # Admin tools documentation
 ├── docs/                    # Documentation and assets
 │   ├── images/              # Screenshots, diagrams, visual assets
-│   │   └── main_user_screen.jpg # Main interface screenshot
-│   └── wiki/                # Additional documentation pages
-├── amazonq-context/     # Amazon Q session context files
+│   │   ├── main_user_screen_with_keep_alive_and_release_menu.jpg
+│   │   └── main_admin_screen_with_menu.jpg
+│   ├── wiki/
+│   │   └── DOCKER.md        # Docker deployment guide
+│   └── REFACTORING_SUMMARY.md # Development history
+├── amazonq-context/         # Amazon Q session context files
 │   ├── backend_context.md   # Backend architecture and setup
 │   └── frontend_context.md  # Frontend architecture and components
-├── app.py              # Main Flask application entry point
-├── requirements.txt    # Python dependencies
-└── README.md           # This file
+├── data/                    # Runtime data directory
+│   ├── reservia.db          # SQLite database file
+│   └── reservia.log         # Application log file
+├── env/                     # Python virtual environment
+├── .dockerignore            # Docker ignore patterns
+├── .gitignore              # Git ignore patterns
+├── app.py                  # Main Flask application entry point
+├── check_password.py       # Password hashing utility
+├── check_users.py          # User checking utility (root level)
+├── cookies.txt             # Session cookies for testing
+├── create_super_user.py    # Super user creation (root level)
+├── docker-compose.yml      # Docker Compose configuration
+├── docker-run.sh           # Docker run script
+├── Dockerfile              # Docker image definition
+├── requirements.txt        # Python dependencies
+└── README.md               # This documentation
 ```
 
 ## Running the Server
