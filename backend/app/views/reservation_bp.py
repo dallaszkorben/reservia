@@ -2,7 +2,7 @@ import logging
 from flask import Blueprint, jsonify, request
 from .base_view import BaseView
 from ..constants import LOG_PREFIX_ENDPOINT
-from ..database import Database
+from ..database import Database, User, ReservationLifecycle, Resource
 from ..utils import epoch_to_iso8601
 from ...config.config import CONFIG
 
@@ -280,6 +280,131 @@ class GetActiveReservationsView(BaseView):
             return jsonify({"error": "Internal server error"}), 500
 
 
+class GetAllUsersReservationStatusView(BaseView):
+    """Handles GET requests for retrieving reservation status for all users.
+
+    Requires admin authentication. Returns all active reservations across all resources
+    with user and resource details.
+
+    Returns:
+        tuple: JSON response with all reservations and HTTP status code
+
+    Example:
+        curl -H "Content-Type: application/json" -X GET -b cookies.txt \
+             http://localhost:5000/reservation/status/all_users
+    """
+    def get(self):
+        logging.info(f"{LOG_PREFIX_ENDPOINT}/reservation/status/all_users endpoint accessed")
+
+        try:
+            db = Database.get_instance()
+            current_user = db.get_current_user()
+
+            if not current_user:
+                return jsonify({"error": "Authentication required"}), 401
+
+            # Check admin access
+            if not db._has_admin_access(current_user):
+                return jsonify({"error": "Admin access required"}), 403
+
+            # Get all active reservations across all resources
+            with db.lock:
+                reservations = db.session.query(ReservationLifecycle).join(User).join(Resource).filter(
+                    ReservationLifecycle.cancelled_date.is_(None),
+                    ReservationLifecycle.released_date.is_(None)
+                ).order_by(ReservationLifecycle.request_date.asc()).all()
+
+            reservation_list = []
+            for r in reservations:
+                reservation_list.append({
+                    "id": r.id,
+                    "user_id": r.user_id,
+                    "user_name": r.user.name,
+                    "resource_id": r.resource_id,
+                    "resource_name": r.resource.name,
+                    "request_date": epoch_to_iso8601(r.request_date),
+                    "approved_date": epoch_to_iso8601(r.approved_date) if r.approved_date else None,
+                    "valid_until_date": r.valid_until_date,
+                    "status": "approved" if r.approved_date else "requested"
+                })
+
+            return jsonify({
+                "message": "All users reservation status retrieved successfully",
+                "reservations": reservation_list,
+                "count": len(reservation_list)
+            }), 200
+
+        except Exception as e:
+            logging.error(f"{LOG_PREFIX_ENDPOINT}Error in get_all_users_reservation_status: {str(e)}")
+            return jsonify({"error": "Internal server error"}), 500
+
+
+class GetUserReservationStatusView(BaseView):
+    """Handles GET requests for retrieving current user's reservation status for a specific resource.
+
+    Requires user authentication and resource_id query parameter. Returns the logged-in user's
+    active reservation for the specified resource, or null if no active reservation exists.
+
+    Returns:
+        tuple: JSON response with user's reservation or null and HTTP status code
+
+    Example:
+        curl -H "Content-Type: application/json" -X GET -b cookies.txt \
+             "http://localhost:5000/reservation/status/user?resource_id=1"
+    """
+    def get(self):
+        logging.info(f"{LOG_PREFIX_ENDPOINT}/reservation/status/user endpoint accessed")
+
+        try:
+            db = Database.get_instance()
+            current_user = db.get_current_user()
+
+            if not current_user:
+                return jsonify({"error": "Authentication required"}), 401
+
+            resource_id = request.args.get('resource_id')
+            if not resource_id:
+                return jsonify({"error": "resource_id parameter is required"}), 400
+
+            try:
+                resource_id = int(resource_id)
+            except ValueError:
+                return jsonify({"error": "resource_id must be a valid integer"}), 400
+
+            # Get user's active reservation for the specific resource
+            with db.lock:
+                reservation = db.session.query(ReservationLifecycle).join(User).join(Resource).filter(
+                    ReservationLifecycle.user_id == current_user['user_id'],
+                    ReservationLifecycle.resource_id == resource_id,
+                    ReservationLifecycle.cancelled_date.is_(None),
+                    ReservationLifecycle.released_date.is_(None)
+                ).first()
+
+            if reservation:
+                reservation_data = {
+                    "id": reservation.id,
+                    "user_id": reservation.user_id,
+                    "user_name": reservation.user.name,
+                    "resource_id": reservation.resource_id,
+                    "resource_name": reservation.resource.name,
+                    "request_date": epoch_to_iso8601(reservation.request_date),
+                    "approved_date": epoch_to_iso8601(reservation.approved_date) if reservation.approved_date else None,
+                    "valid_until_date": reservation.valid_until_date,
+                    "status": "approved" if reservation.approved_date else "requested"
+                }
+            else:
+                reservation_data = None
+
+            return jsonify({
+                "message": "User reservation status retrieved successfully",
+                "reservation": reservation_data
+            }), 200
+
+        except Exception as e:
+            logging.error(f"{LOG_PREFIX_ENDPOINT}Error in get_user_reservation_status: {str(e)}")
+            return jsonify({"error": "Internal server error"}), 500
+
+
 class ReservationBlueprintManager:
     def __init__(self):
         self.blueprint = Blueprint('reservation', __name__, url_prefix='/reservation')
@@ -291,6 +416,8 @@ class ReservationBlueprintManager:
         self.blueprint.add_url_rule('/cancel', view_func=CancelReservationView.as_view('cancel'))
         self.blueprint.add_url_rule('/release', view_func=ReleaseReservationView.as_view('release'))
         self.blueprint.add_url_rule('/keep_alive', view_func=KeepAliveReservationView.as_view('keep_alive'))
+        self.blueprint.add_url_rule('/status/all_users', view_func=GetAllUsersReservationStatusView.as_view('status_all_users'))
+        self.blueprint.add_url_rule('/status/user', view_func=GetUserReservationStatusView.as_view('status_user'))
 
     def get_blueprint(self):
         return self.blueprint

@@ -558,6 +558,146 @@ def test_api_reservation_keep_alive():
 
     print(f"{GREEN}API reservation keep_alive tests passed!{RESET}")
 
+def test_api_reservation_status_all_users():
+    """
+    Test /reservation/status/all_users endpoint functionality including admin authorization
+    and proper retrieval of all active reservations across all resources.
+    """
+    print("=== API reservation status all users endpoint tests started!")
+
+    cleanup_test_databases()
+
+    config_dict = {
+        'app_name': TEST_APP_NAME,
+        'version': '1.0.0',
+        'data_dir': os.path.join(HOME, TEST_DIR_NAME),
+        'log': {'log_name': 'test.log', 'level': 'DEBUG', 'backupCount': 1},
+        'database': {'name': TEST_DB_NAME},
+        'data_dir': os.path.join(HOME, TEST_DIR_NAME)
+    }
+
+    app = ReserviaApp(config_dict)
+    operation = 0
+
+    with app.test_client() as client:
+        # Setup
+        client.post('/session/login', data=json.dumps({'name': 'admin', 'password': hash_password('admin')}), content_type='application/json')
+        client.post('/admin/user/add', data=json.dumps({'name': 'user1', 'email': 'user1@example.com', 'password': hash_password('pass1')}), content_type='application/json')
+        client.post('/admin/user/add', data=json.dumps({'name': 'user2', 'email': 'user2@example.com', 'password': hash_password('pass2')}), content_type='application/json')
+        resp1 = client.post('/admin/resource/add', data=json.dumps({'name': 'Resource A', 'comment': 'Test resource A'}), content_type='application/json')
+        resp2 = client.post('/admin/resource/add', data=json.dumps({'name': 'Resource B', 'comment': 'Test resource B'}), content_type='application/json')
+        resource_a_id = json.loads(resp1.data)['resource_id']
+        resource_b_id = json.loads(resp2.data)['resource_id']
+        client.post('/session/logout')
+
+        operation += 1
+        print(f"\n{operation}. Unauthorized access test")
+        response = client.get('/reservation/status/all_users')
+        assert response.status_code == 401
+
+        operation += 1
+        print(f"\n{operation}. Non-admin access test")
+        client.post('/session/login', data=json.dumps({'name': 'user1', 'password': hash_password('pass1')}), content_type='application/json')
+        response = client.get('/reservation/status/all_users')
+        assert response.status_code == 403
+        client.post('/session/logout')
+
+        operation += 1
+        print(f"\n{operation}. Create reservations across multiple resources")
+        # User1 reserves Resource A
+        client.post('/session/login', data=json.dumps({'name': 'user1', 'password': hash_password('pass1')}), content_type='application/json')
+        client.post('/reservation/request', data=json.dumps({'resource_id': resource_a_id}), content_type='application/json')
+        client.post('/session/logout')
+        
+        # User2 reserves Resource B
+        client.post('/session/login', data=json.dumps({'name': 'user2', 'password': hash_password('pass2')}), content_type='application/json')
+        client.post('/reservation/request', data=json.dumps({'resource_id': resource_b_id}), content_type='application/json')
+        client.post('/session/logout')
+
+        operation += 1
+        print(f"\n{operation}. Admin retrieves all users reservation status")
+        client.post('/session/login', data=json.dumps({'name': 'admin', 'password': hash_password('admin')}), content_type='application/json')
+        response = client.get('/reservation/status/all_users')
+        assert response.status_code == 200
+        
+        data = json.loads(response.data)
+        assert data['message'] == 'All users reservation status retrieved successfully'
+        assert 'reservations' in data
+        assert data['count'] == 2
+        
+        # Verify both reservations are present
+        reservations = data['reservations']
+        user_names = [r['user_name'] for r in reservations]
+        resource_names = [r['resource_name'] for r in reservations]
+        
+        assert 'user1' in user_names
+        assert 'user2' in user_names
+        assert 'Resource A' in resource_names
+        assert 'Resource B' in resource_names
+
+    print(f"{GREEN}API reservation status all users tests passed!{RESET}")
+
+def test_api_reservation_status_user():
+    """
+    Test /reservation/status/user endpoint functionality including user authentication
+    and proper retrieval of current user's reservation for a specific resource.
+    """
+    print("=== API reservation status user endpoint tests started!")
+
+    cleanup_test_databases()
+
+    config_dict = {
+        'app_name': TEST_APP_NAME,
+        'version': '1.0.0',
+        'data_dir': os.path.join(HOME, TEST_DIR_NAME),
+        'log': {'log_name': 'test.log', 'level': 'DEBUG', 'backupCount': 1},
+        'database': {'name': TEST_DB_NAME},
+        'data_dir': os.path.join(HOME, TEST_DIR_NAME)
+    }
+
+    app = ReserviaApp(config_dict)
+    operation = 0
+
+    with app.test_client() as client:
+        # Setup
+        client.post('/session/login', data=json.dumps({'name': 'admin', 'password': hash_password('admin')}), content_type='application/json')
+        client.post('/admin/user/add', data=json.dumps({'name': 'user1', 'email': 'user1@example.com', 'password': hash_password('pass1')}), content_type='application/json')
+        resp = client.post('/admin/resource/add', data=json.dumps({'name': 'Test Resource', 'comment': 'Test resource'}), content_type='application/json')
+        resource_id = json.loads(resp.data)['resource_id']
+        client.post('/session/logout')
+
+        operation += 1
+        print(f"\n{operation}. Unauthorized access test")
+        response = client.get(f'/reservation/status/user?resource_id={resource_id}')
+        assert response.status_code == 401
+
+        operation += 1
+        print(f"\n{operation}. No reservation test")
+        client.post('/session/login', data=json.dumps({'name': 'user1', 'password': hash_password('pass1')}), content_type='application/json')
+        response = client.get(f'/reservation/status/user?resource_id={resource_id}')
+        assert response.status_code == 200
+        
+        data = json.loads(response.data)
+        assert data['message'] == 'User reservation status retrieved successfully'
+        assert data['reservation'] is None
+
+        operation += 1
+        print(f"\n{operation}. With reservation test")
+        # Create a reservation
+        client.post('/reservation/request', data=json.dumps({'resource_id': resource_id}), content_type='application/json')
+        
+        response = client.get(f'/reservation/status/user?resource_id={resource_id}')
+        assert response.status_code == 200
+        
+        data = json.loads(response.data)
+        assert data['message'] == 'User reservation status retrieved successfully'
+        assert data['reservation'] is not None
+        assert data['reservation']['user_name'] == 'user1'
+        assert data['reservation']['resource_name'] == 'Test Resource'
+        assert data['reservation']['status'] == 'approved'
+
+    print(f"{GREEN}API reservation status user tests passed!{RESET}")
+
 if __name__ == "__main__":
     try:
         test_db_reservation_request_failure()
@@ -567,6 +707,8 @@ if __name__ == "__main__":
         test_api_reservation_lifecycle()
         test_api_reservation_active()
         test_api_reservation_keep_alive()
+        test_api_reservation_status_all_users()
+        test_api_reservation_status_user()
     except Exception as e:
         print(f"{RED}Tests failed: {e}{RESET}")
         raise
