@@ -71,6 +71,7 @@ open http://localhost:5050
 - [📋 System Requirements](#-system-requirements)
 - [🔧 Installation & Setup](#-installation--setup)
 - [🐳 Docker Setup](docs/wiki/DOCKER.md) - Container deployment guide
+- [🔗 Integration Examples](#-integration-examples)
 - [📚 API Documentation](#-api-documentation)
 - [🧪 Testing](#-testing)
 - [📁 Project Structure](#-project-structure)
@@ -482,6 +483,77 @@ The backend test suite follows a **functional area organization** for better mai
 - **Master Runner** - Single command execution with detailed reporting
 - **Logical Flow** - Tests run in dependency order: Session → Users → Resources → Reservations
 
+## 🔗 Integration Examples
+
+The `integration/` directory contains complete Python examples demonstrating programmatic interaction with the Reservia API.
+
+### Python Integration Script
+
+**File**: `integration/reservia_integration.py`
+
+Complete workflow example showing:
+- **Authentication** with SHA-256 password hashing
+- **Resource reservation** management
+- **Status monitoring** with keep-alive messages
+- **Script execution** with reservation maintenance
+- **Proper cleanup** and resource release
+
+### Quick Integration Setup
+
+```bash
+# Install requirements
+pip install requests
+
+# Configure the script
+edit integration/reservia_integration.py
+# Set: RESERVIA_BASE_URL, RESOURCE_ID, USERNAME, PASSWORD
+
+# Run the integration
+python3 integration/reservia_integration.py
+```
+
+### Integration Workflow
+
+1. **Login** → Authenticate with hashed credentials
+2. **Reserve** → Request resource or check existing reservation  
+3. **Wait** → Monitor approval status, send keep-alive if queued
+4. **Execute** → Run your script while maintaining reservation
+5. **Release** → Clean up and free resource for others
+
+### API Endpoints Used
+
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /session/login` | User authentication |
+| `POST /reservation/request` | Request resource reservation |
+| `GET /reservation/active/user` | Check user's reservation status |
+| `POST /reservation/keep_alive` | Extend reservation validity |
+| `POST /reservation/release` | Release resource |
+
+### Expected Output
+
+```
+============================================================
+🎯 RESERVIA INTEGRATION SCRIPT
+============================================================
+Logging in as user1...
+✅ Login successful
+📋 Found existing reservation with status: approved
+🚀 Starting mock script...
+📋 Mock script started with PID: 12345
+🔄 Monitoring script execution...
+⏰ Keep alive sent
+⏰ Keep alive sent
+✅ Mock script completed successfully
+Releasing resource...
+✅ Resource released successfully
+============================================================
+🎉 WORKFLOW COMPLETED SUCCESSFULLY
+============================================================
+```
+
+**📋 For detailed integration documentation, see [integration/README.md](integration/README.md)**
+
 ## 📚 API Documentation
 
 ### 🔒 Authentication
@@ -869,6 +941,13 @@ reservia/
 ├── frontend/             # Client-side code
 │   ├── static/          # CSS, JS, images
 │   └── templates/       # HTML templates
+├── integration/          # API integration examples
+│   ├── reservia_integration.py # Complete Python workflow
+│   ├── mock_script.py   # Sample workload script
+│   └── README.md        # Integration documentation
+├── admin_tools/          # Database administration scripts
+│   ├── create_user.py   # User management utilities
+│   └── README.md        # Admin tools documentation
 ├── docs/                 # Documentation and assets
 │   ├── images/          # Screenshots and diagrams
 │   └── wiki/            # Additional documentation
@@ -886,6 +965,8 @@ reservia/
 - [ ] Email notifications for queue updates
 - [ ] Resource categories and filtering
 - [ ] Mobile app development
+- [ ] Additional integration examples (Node.js, Java, Shell scripts)
+- [ ] Webhook notifications for reservation events
 
 ---
 
