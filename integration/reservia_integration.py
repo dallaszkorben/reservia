@@ -160,7 +160,7 @@ def login(base_url):
     else:
         print("🔒 Server requires authentication")
         print("❌ This script only supports no-auth mode")
-        print("Please run the server with --no-auth flag")
+        print("Please set 'need_auth': False in backend/config/config.py")
         sys.exit(1)
     
     # Attempt login

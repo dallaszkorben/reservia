@@ -70,6 +70,7 @@ def main():
         ('test_resource_management', 'Resource Management Tests'),
         ('test_reservation_system', 'Reservation System Tests'),
         ('test_expiration_system', 'Expiration System Tests'),
+        ('test_integration_script', 'Integration Script Tests'),
     ]
     
     results = []
