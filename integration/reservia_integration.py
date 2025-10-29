@@ -100,6 +100,13 @@ def login():
     # Create session for cookie management
     session = requests.Session()
     
+    # Disable SSL verification for corporate certificates
+    session.verify = False
+    
+    # Suppress SSL warnings
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    
     # Hash password as required by Reservia API
     hashed_password = hashlib.sha256(PASSWORD.encode()).hexdigest()
     
