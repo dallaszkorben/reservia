@@ -6,13 +6,22 @@
 
 ### Option 1: Docker (Recommended)
 ```bash
-# Clone and run with Docker
+# Clone and build
 git clone https://github.com/dallaszkorben/reservia.git
 cd reservia
+docker build -t reservia .
+
+# Run with default settings (auth enabled, server runs in background)
+docker run -d -p 5000:5000 reservia
+
+# Run with authentication disabled (server runs in background)
+docker run -d -p 5000:5000 -e RESERVIA_NO_AUTH=1 reservia
+
+# Or use docker compose (server runs in background)
 docker compose up -d
 
 # Open browser
-open http://localhost:5050
+open http://localhost:5000
 ```
 
 ### Option 2: Python Setup
@@ -28,7 +37,7 @@ pip install -r requirements.txt
 python app.py
 
 # Open browser
-open http://localhost:5050
+open http://localhost:5000
 ```
 
 **Default Login**: Username: `admin`, Password: `admin`
@@ -100,7 +109,14 @@ open http://localhost:5050
 
 4. **Start the server**:
    ```bash
+   # Default (authentication enabled)
    python app.py
+   
+   # Disable authentication for testing
+   python app.py --no-auth
+   
+   # Show all options
+   python app.py --help
    ```
 
 5. **Access the application**:
@@ -147,7 +163,8 @@ The system uses centralized configuration in `backend/config/config.py`:
 CONFIG = {
     'approved_keep_alive_sec': 600,     # Default 10 minutes (600 seconds)
     'requested_keep_alive_sec': 1800,   # Default 30 minutes (1800 seconds), 0 = disabled
-    'expiration_check_interval_sec': 1  # Check for expired reservations every 1 second
+    'expiration_check_interval_sec': 1, # Check for expired reservations every 1 second
+    'need_auth': True                   # Default authentication requirement
 }
 ```
 
@@ -156,6 +173,20 @@ CONFIG = {
 - **`approved_keep_alive_sec`**: Duration (in seconds) that approved reservations remain valid before automatic expiration
 - **`requested_keep_alive_sec`**: Duration (in seconds) that requested reservations remain valid. Set to `0` or `None` to disable expiration for requested reservations
 - **`expiration_check_interval_sec`**: Frequency (in seconds) for background thread to check for expired reservations
+- **`need_auth`**: Global authentication requirement (can be overridden via command-line)
+
+### Command-Line Options
+
+```bash
+# Show all available options
+python app.py --help
+
+# Start with authentication disabled
+python app.py --no-auth
+
+# Docker with environment variable
+docker run -e RESERVIA_NO_AUTH=1 reservia
+```
 
 ### Frontend Configuration
 
@@ -240,34 +271,81 @@ reservia/
 
 ## Running the Server
 
-### Temporary Development Server (Flask built-in)
+### Development Server Options
 
-1. Create and activate virtual environment:
 ```bash
-python3 -m venv env
-source env/bin/activate
-```
-
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-3. Run the development server:
-```bash
+# Default (authentication enabled)
 python app.py
+
+# Disable authentication for testing
+python app.py --no-auth
+
+# Show help and all options
+python app.py --help
 ```
 
-4. Access the application:
+### Docker Deployment
+
+```bash
+# Build the image
+docker build -t reservia .
+
+# Run with default settings (foreground)
+docker run -p 5000:5000 reservia
+
+# Run in background (detached mode)
+docker run -d -p 5000:5000 reservia
+
+# Run with authentication disabled
+docker run -d -p 5000:5000 -e RESERVIA_NO_AUTH=1 reservia
+
+# Using docker compose (always runs in background)
+docker compose up -d
+```
+
+**Detached Mode (`-d` flag):**
+- **Without `-d`**: Container runs in foreground, shows logs in terminal, stops when you press Ctrl+C
+- **With `-d`**: Container runs in background, returns control to terminal immediately
+
+### Access Points
 - Main page: http://localhost:5000
 - Health check: http://localhost:5000/info/is_alive
 - Version info: http://localhost:5000/info/get_version
 
-### Permanent Production Server (Apache2)
-(To be configured in future development phases)
+### Production Deployment
 
-## Setup Instructions
-(To be added in future development phases)
+**Docker Compose** (Recommended):
+```yaml
+services:
+  reservia:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - FLASK_ENV=production
+      # - RESERVIA_NO_AUTH=1  # Uncomment to disable auth
+    restart: unless-stopped
+```
+
+```bash
+# Run with docker compose (default - auth enabled)
+docker compose up -d
+
+# To disable auth, uncomment RESERVIA_NO_AUTH=1 in docker-compose.yml
+# Or create .env file:
+echo "RESERVIA_NO_AUTH=1" > .env
+docker compose up -d
+```
+
+**Docker Compose Configuration Options:**
+- **Environment variables in docker-compose.yml**: Uncomment `RESERVIA_NO_AUTH=1` line
+- **Environment file**: Create `.env` file with `RESERVIA_NO_AUTH=1`
+- **Command override**: Add `command: ["python", "app.py", "--no-auth"]` to docker-compose.yml
+- **Direct docker run**: Use `docker run -p 5000:5000 reservia python app.py --no-auth` for command-line args
+
+**Apache2 Configuration**: Coming in future releases
 
 ## Database Schema
 

@@ -7,4 +7,5 @@ services:
       - ./data:/app/data
     environment:
       - FLASK_ENV=production
+      # - RESERVIA_NO_AUTH=1  # Uncomment to disable auth
     restart: unless-stopped

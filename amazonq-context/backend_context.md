@@ -154,6 +154,19 @@ reservia/
 - `/reservation/active/all_users` - Get all active reservations across all resources (any user)
 - `/reservation/active/user` - Get user's active reservation for a specific resource (any user)
 
+### Integration Examples
+- **Python Integration Script**: Complete workflow demonstration (`integration/reservia_integration.py`)
+  - Command-line configurable with URL, script, and interval parameters
+  - SHA-256 password hashing for authentication
+  - Smart executable detection (Python scripts vs system commands)
+  - Automatic reservation management (request → wait for approval → execute → release)
+  - Keep-alive message handling during script execution
+  - Proper cleanup on success or failure (cancel requested, release approved)
+  - Comprehensive error handling and status reporting
+- **Mock Script**: Simple 30-second test workload (`integration/mock_script.py`)
+- **Requirements**: Dependencies merged into main requirements.txt
+- **Documentation**: Complete usage examples and troubleshooting guide
+
 ### System Architecture
 - **Database**: SQLite with SQLAlchemy ORM and SQL injection protection
 - **Authentication**: SHA-256 password hashing with Flask session management
@@ -176,6 +189,9 @@ reservia/
 - Complete test coverage (9 test suites, 100% pass rate)
 - Admin tools for database management
 - Real-time frontend with countdown timers and hover actions
+- **Python integration examples** with command-line configuration
+- **Complete workflow automation** for external script execution
+- **Smart process management** with keep-alive during execution
 
 ## Potential Future Enhancements
 - Email notifications for queue updates
