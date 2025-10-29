@@ -171,20 +171,17 @@ def check_reservation_status(session, base_url):
     Exits:
         System exit on API failure
     """
-    response = session.get(f"{base_url}/reservation/active?resource_id={RESOURCE_ID}")
+    response = session.get(f"{base_url}/reservation/active/user?resource_id={RESOURCE_ID}")
     
     if response.status_code != 200:
         print(f"❌ Status check failed with status code: {response.status_code}")
         sys.exit(1)
     
-    # Parse response to find user's reservation
-    reservations = response.json().get("reservations", [])
+    # Parse response to get user's reservation
+    reservation = response.json().get("reservation")
     
-    # Search for this user's reservation for the target resource
-    for reservation in reservations:
-        if (reservation.get("resource_id") == RESOURCE_ID and 
-            reservation.get("user_name") == USERNAME):
-            return reservation.get("status")
+    if reservation:
+        return reservation.get("status")
     
     return None  # No reservation found
 
