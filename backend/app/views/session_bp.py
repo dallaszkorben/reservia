@@ -1,5 +1,5 @@
 import logging
-from flask import Blueprint, jsonify, request, session
+from flask import Blueprint, jsonify, request, session, current_app
 from .base_view import BaseView
 from ..constants import LOG_PREFIX_ENDPOINT
 from ..database import Database
@@ -32,11 +32,16 @@ class SessionLogin(BaseView):
         logging.info(f"{LOG_PREFIX_ENDPOINT}/session/login endpoint accessed")
 
         data = request.get_json()
-        if not data or 'name' not in data or 'password' not in data:
-            return jsonify({"error": "Missing required fields: name, password"}), 400
+        if not data or 'name' not in data:
+            return jsonify({"error": "Missing required field: name"}), 400
 
         name = data['name']
-        password = data['password']
+        password = data.get('password')  # Optional in no-auth mode
+        
+        # Check if auth is required
+        no_auth = not current_app.config['APP_CONFIG'].get('need_auth', True)
+        if not no_auth and not password:
+            return jsonify({"error": "Password required when authentication is enabled"}), 400
 
         try:
             db = Database.get_instance()

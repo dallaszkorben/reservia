@@ -114,10 +114,10 @@ open http://localhost:5000
    ```bash
    # Default (authentication enabled)
    python app.py
-   
+
    # Disable authentication for testing
    python app.py --no-auth
-   
+
    # Show all options
    python app.py --help
    ```
@@ -635,7 +635,7 @@ python3 integration/reservia_integration.py
 ### Integration Workflow
 
 1. **Login** → Authenticate with hashed credentials
-2. **Reserve** → Request resource or check existing reservation  
+2. **Reserve** → Request resource or check existing reservation
 3. **Wait** → Monitor approval status, send keep-alive if queued
 4. **Execute** → Run your script while maintaining reservation
 5. **Release** → Clean up and free resource for others
@@ -956,6 +956,127 @@ Expected response (logged out):
 3. **Logout**: Use `-b cookies.txt -c cookies.txt` to properly clear session cookie
 
 **Note**: The logout endpoint properly invalidates the session cookie. After logout, subsequent requests to admin endpoints will fail with authentication errors.
+
+## 🔐 Session Management
+
+Reservia uses Flask sessions for user authentication and state management. Session handling differs between web browsers and programmatic API access.
+
+### Web Browser Sessions
+
+**How it works:**
+- **Session Storage**: Flask creates encrypted session cookies stored in the browser
+- **Automatic Management**: Browser automatically sends cookies with each request
+- **Session Data**: Contains user ID, email, username, and role information
+- **Persistence**: Sessions persist until logout or browser closure
+- **Security**: Cookies are HTTP-only and secure in production
+
+**Session Lifecycle:**
+1. **Login**: User submits credentials → Server validates → Session cookie created
+2. **Navigation**: Browser automatically includes session cookie in all requests
+3. **Authentication**: Server validates session cookie for protected endpoints
+4. **Logout**: Session cleared and cookie invalidated
+
+**Browser Session Example:**
+```javascript
+// Session cookie automatically managed by browser
+// No manual cookie handling required
+fetch('/reservation/request', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({resource_id: 1})
+    // Session cookie automatically included
+});
+```
+
+### Integration Script Sessions
+
+**How it works:**
+- **Session Object**: `requests.Session()` manages cookies in memory
+- **Automatic Cookie Handling**: Session object stores and sends cookies automatically
+- **Memory Storage**: Cookies exist only during script execution (not saved to disk)
+- **Stateful Requests**: All API calls use the same session object
+
+**Session Lifecycle:**
+1. **Create Session**: `session = requests.Session()` creates cookie jar
+2. **Login**: POST to `/session/login` → Server responds with session cookie
+3. **Auto-Storage**: Session object automatically stores the cookie
+4. **API Calls**: All subsequent requests automatically include the cookie
+5. **Script End**: Session and cookies are automatically discarded
+
+**Integration Session Example:**
+```python
+import requests
+
+# Create session for automatic cookie management
+session = requests.Session()
+
+# Login - session automatically stores returned cookies
+response = session.post(f"{base_url}/session/login", json=login_data)
+
+# All subsequent requests automatically include session cookies
+response = session.post(f"{base_url}/reservation/request", json=reserve_data)
+response = session.get(f"{base_url}/reservation/active/user?resource_id=1")
+response = session.post(f"{base_url}/reservation/keep_alive", json=keep_alive_data)
+
+# No manual cookie management required
+```
+
+### Session Comparison
+
+| Aspect | Web Browser | Integration Script |
+|--------|-------------|--------------------|
+| **Storage** | Browser cookie store | Memory (session object) |
+| **Management** | Automatic by browser | Automatic by requests.Session() |
+| **Persistence** | Until logout/browser close | Until script ends |
+| **File Storage** | Browser handles internally | No files created |
+| **Manual Handling** | Not required | Not required |
+| **Security** | Browser security model | In-memory only |
+
+### curl Session Management
+
+For manual API testing with curl, session cookies must be explicitly managed:
+
+```bash
+# Save session cookie to file during login
+curl -c cookies.txt -X POST -H "Content-Type: application/json" \
+     -d '{"name": "admin", "password": "hashed_password"}' \
+     http://localhost:5000/session/login
+
+# Use saved cookie for authenticated requests
+curl -b cookies.txt -X POST -H "Content-Type: application/json" \
+     -d '{"resource_id": 1}' \
+     http://localhost:5000/reservation/request
+
+# Clear session cookie during logout
+curl -b cookies.txt -c cookies.txt -X POST \
+     http://localhost:5000/session/logout
+```
+
+### No-Auth Mode Sessions
+
+When running with `--no-auth`, session handling is simplified:
+
+- **Web Browser**: Still uses sessions but no password required
+- **Integration Script**: Login with username only, no password hashing needed
+- **Auto-User Creation**: Users are automatically created if they don't exist
+- **Session Data**: Contains same user information (ID, email, username, role)
+
+**No-Auth Integration Example:**
+```python
+# Check if server is in no-auth mode
+no_auth = check_no_auth_mode(base_url)
+
+if no_auth:
+    # Login with username only (from whoami command)
+    username = subprocess.run(['whoami'], capture_output=True, text=True).stdout.strip()
+    login_data = {"name": username}  # No password required
+else:
+    # Standard authentication required
+    login_data = {"name": username, "password": hashed_password}
+
+# Session management remains the same
+session.post(f"{base_url}/session/login", json=login_data)
+```
 
 ## Reservation System Features
 

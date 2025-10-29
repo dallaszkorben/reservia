@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker, relationship
 from .constants import LOG_PREFIX_DATABASE
 from .utils import get_current_epoch, epoch_to_iso8601
 from flask import session
-from ..config.config import CONFIG
+from backend.config.config import CONFIG
 
 Base = declarative_base()
 
@@ -17,7 +17,7 @@ class User(Base):
     __tablename__ = 'users'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    email = Column(String, unique=True, nullable=False)
+    email = Column(String, unique=True, nullable=True)
     name = Column(String, unique=True, nullable=False)
     role = Column(String, default='user', nullable=False)
 
@@ -118,13 +118,15 @@ class Database:
 
     # === Session ===
 
-    def login(self, name, password):
+    def login(self, name, password=None):
         """
         Authenticate user and create session.
+        - If RESERVIA_NO_AUTH is false: normal password authentication
+        - If RESERVIA_NO_AUTH is true: auto-create user if not exists, no password required
 
         Args:
             name (str): Username for authentication. Required.
-            password (str): User password already hashed on client-side. Required.
+            password (str, optional): User password already hashed on client-side. Required when auth enabled.
 
         Returns:
             tuple: (success, data, error_code, error_message)
@@ -140,34 +142,62 @@ class Database:
             else:
                 print(f"Login failed: {error_msg}")
         """
+        # Check if authentication is disabled
+        no_auth = not self.config_dict.get('need_auth', True)
+        
         with self.lock:
             user = self.session.query(User).filter(User.name == name).first()
-            if not user:
-                logging.error(f"{LOG_PREFIX_DATABASE}The given user '{name}' to login does not exist")
-                return False, None, "USER_NOT_FOUND", f"User '{name}' does not exist"
+            
+            if no_auth:
+                # NO_AUTH mode: auto-create user if not exists
+                if not user:
+                    try:
+                        user = User(name=name, email=None, role='user')
+                        self.session.add(user)
+                        self.session.commit()
+                        logging.info(f"{LOG_PREFIX_DATABASE}Auto-created user '{name}' in no-auth mode")
+                    except Exception as e:
+                        self.session.rollback()
+                        logging.error(f"{LOG_PREFIX_DATABASE}Error auto-creating user '{name}': {str(e)}")
+                        return False, None, "USER_CREATION_ERROR", "Failed to create user"
+                
+                # Set session for no-auth mode
+                session['logged_in_user'] = {
+                    'user_id': user.id,
+                    'user_email': user.email,
+                    'user_name': user.name,
+                    'role': user.role
+                }
+                session.permanent = True
+                logging.info(f"{LOG_PREFIX_DATABASE}User '{name}' logged in successfully (no-auth mode)")
+                return True, user, None, None
+            
+            else:
+                # AUTH mode: normal password verification
+                if not user:
+                    logging.error(f"{LOG_PREFIX_DATABASE}The given user '{name}' to login does not exist")
+                    return False, None, "USER_NOT_FOUND", f"User '{name}' does not exist"
 
-            password_entry = self.session.query(Password).filter(Password.user_id == user.id).first()
-            if not password_entry:
-                logging.error(f"{LOG_PREFIX_DATABASE}It should not happen. There was NO password found for the given name '{name} in the database'")
-                return False, None, "PASSWORD_NOT_FOUND", "Password entry not found"
+                password_entry = self.session.query(Password).filter(Password.user_id == user.id).first()
+                if not password_entry:
+                    logging.error(f"{LOG_PREFIX_DATABASE}It should not happen. There was NO password found for the given name '{name} in the database'")
+                    return False, None, "PASSWORD_NOT_FOUND", "Password entry not found"
 
-            # Password is already hashed on client-side, compare directly
-            logging.debug(f"{LOG_PREFIX_DATABASE}Login attempt - stored: {password_entry.password[:10]}..., provided: {password[:10]}...")
-            if password_entry.password != password:
-                logging.error(f"{LOG_PREFIX_DATABASE}The given password for user '{name}' is incorrect")
-                return False, None, "INVALID_PASSWORD", "Invalid credentials"
+                # Password is already hashed on client-side, compare directly
+                logging.debug(f"{LOG_PREFIX_DATABASE}Login attempt - stored: {password_entry.password[:10]}..., provided: {password[:10]}...")
+                if password_entry.password != password:
+                    logging.error(f"{LOG_PREFIX_DATABASE}The given password for user '{name}' is incorrect")
+                    return False, None, "INVALID_PASSWORD", "Invalid credentials"
 
-            logging.info(f"{LOG_PREFIX_DATABASE}User '{name}' logged in successfully")
-
-            session['logged_in_user'] = {
-                'user_id': user.id,
-                'user_email': user.email,
-                'user_name': user.name,
-                'role': user.role
-            }
-            session.permanent = True
-
-            return True, user, None, None
+                session['logged_in_user'] = {
+                    'user_id': user.id,
+                    'user_email': user.email,
+                    'user_name': user.name,
+                    'role': user.role
+                }
+                session.permanent = True
+                logging.info(f"{LOG_PREFIX_DATABASE}User '{name}' logged in successfully")
+                return True, user, None, None
 
     def logout(self):
         if 'logged_in_user' in session:
@@ -204,14 +234,16 @@ class Database:
 
     # === Users ===
 
-    def create_user(self, name, email, password):
+    def create_user(self, name, email=None, password=None):
         """
-        Create a new user account (admin only).
+        Create a new user account.
+        - If RESERVIA_NO_AUTH is false: admin/super only, email and password required
+        - If RESERVIA_NO_AUTH is true: anyone can create, email and password optional
 
         Args:
             name (str): Username for the new account. Required.
-            email (str): Email address for the new account. Required.
-            password (str): Password already hashed on client-side. Required.
+            email (str, optional): Email address for the new account. Required when auth enabled.
+            password (str, optional): Password already hashed on client-side. Required when auth enabled.
 
         Returns:
             tuple: (success, data, error_code, error_message)
@@ -227,30 +259,45 @@ class Database:
             else:
                 print(f"User creation failed: {error_msg}")
         """
-        # Only admin/super can create users
-        current_user = self.get_current_user()
-        if not self._has_admin_access(current_user):
-            logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized user creation attempt")
-            return False, None, "UNAUTHORIZED", "Admin access required"
+        # Check if authentication is disabled
+        no_auth = not self.config_dict.get('need_auth', True)
+        
+        if not no_auth:
+            # Auth enabled: only admin/super can create users, email and password required
+            current_user = self.get_current_user()
+            if not self._has_admin_access(current_user):
+                logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized user creation attempt")
+                return False, None, "UNAUTHORIZED", "Admin access required"
+            
+            if not email or not password:
+                logging.error(f"{LOG_PREFIX_DATABASE}Email and password required when auth is enabled")
+                return False, None, "MISSING_REQUIRED_FIELDS", "Email and password are required"
 
         with self.lock:
             try:
-                user = User(name=name, email=email)
+                # Use None for email if not provided and auth is disabled
+                if no_auth:
+                    user_email = email if email else None
+                else:
+                    user_email = email
+                user = User(name=name, email=user_email)
                 self.session.add(user)
                 self.session.flush()
 
-                # Password is already hashed on client-side
-                password_entry = Password(user_id=user.id, password=password)
-                self.session.add(password_entry)
+                # Create password entry only if password is provided
+                if password:
+                    password_entry = Password(user_id=user.id, password=password)
+                    self.session.add(password_entry)
+                
                 self.session.commit()
 
-                logging.info(f"{LOG_PREFIX_DATABASE}User created: {name} ({email})")
+                logging.info(f"{LOG_PREFIX_DATABASE}User created: {name} ({user_email})")
                 return True, user, None, None
             except Exception as e:
                 self.session.rollback()
                 if "UNIQUE constraint failed: users.email" in str(e):
-                    logging.error(f"{LOG_PREFIX_DATABASE}Email '{email}' already exists")
-                    return False, None, "EMAIL_EXISTS", f"Email '{email}' already exists"
+                    logging.error(f"{LOG_PREFIX_DATABASE}Email '{user_email}' already exists")
+                    return False, None, "EMAIL_EXISTS", f"Email '{user_email}' already exists"
                 elif "UNIQUE constraint failed: users.name" in str(e):
                     logging.error(f"{LOG_PREFIX_DATABASE}Username '{name}' already exists")
                     return False, None, "USERNAME_EXISTS", f"Username '{name}' already exists"
@@ -347,7 +394,9 @@ class Database:
 
     def get_users(self):
         """
-        Retrieve all users in the system (admin only).
+        Retrieve all users in the system.
+        - If RESERVIA_NO_AUTH is false: admin only
+        - If RESERVIA_NO_AUTH is true: anyone can access
 
         Returns:
             tuple: (success, data, error_code, error_message)
@@ -356,10 +405,15 @@ class Database:
                 - error_code (str|None): Error code on failure, None on success
                 - error_message (str|None): Human-readable error message on failure, None on success
         """
-        current_user = self.get_current_user()
-        if not self._has_admin_access(current_user):
-            logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized user list access - admin access required")
-            return False, None, "UNAUTHORIZED", "Admin access required"
+        # Check if authentication is disabled
+        no_auth = not self.config_dict.get('need_auth', True)
+        
+        if not no_auth:
+            # Auth enabled: only admin/super can access users
+            current_user = self.get_current_user()
+            if not self._has_admin_access(current_user):
+                logging.error(f"{LOG_PREFIX_DATABASE}Unauthorized user list access - admin access required")
+                return False, None, "UNAUTHORIZED", "Admin access required"
 
         with self.lock:
             try:

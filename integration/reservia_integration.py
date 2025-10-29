@@ -32,8 +32,8 @@ import argparse
 
 # Reservia server configuration
 RESOURCE_ID = 1
-USERNAME = "user1"
-PASSWORD = "user1"
+# Username will be determined from whoami command
+# Password will be removed for no-auth mode
 
 # Default values
 DEFAULT_SCRIPT = "mock_script.py"
@@ -80,12 +80,52 @@ Examples:
     return parser.parse_args()
 
 # =============================================================================
+# UTILITY FUNCTIONS
+# =============================================================================
+
+def get_username():
+    """
+    Get current username from whoami command.
+    
+    Returns:
+        str: Current username
+    """
+    try:
+        result = subprocess.run(['whoami'], capture_output=True, text=True, check=True)
+        return result.stdout.strip()
+    except subprocess.CalledProcessError:
+        print("❌ Failed to get username from whoami")
+        sys.exit(1)
+
+def check_no_auth_mode(base_url):
+    """
+    Check if server is running in no-auth mode by checking /info/is_alive endpoint.
+    
+    Args:
+        base_url (str): Reservia server base URL
+        
+    Returns:
+        bool: True if no-auth mode is enabled, False otherwise
+    """
+    try:
+        response = requests.get(f"{base_url}/info/is_alive")
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('no_auth', False)
+    except Exception as e:
+        print(f"❌ Failed to check server status: {e}")
+        sys.exit(1)
+    
+    return False
+
+# =============================================================================
 # AUTHENTICATION & SESSION MANAGEMENT
 # =============================================================================
 
 def login(base_url):
     """
     Authenticate with Reservia server and establish session.
+    Supports both auth and no-auth modes.
     
     Args:
         base_url (str): Reservia server base URL
@@ -96,7 +136,9 @@ def login(base_url):
     Exits:
         System exit on authentication failure
     """
-    print(f"Logging in as {USERNAME}...")
+    # Get username from whoami
+    username = get_username()
+    print(f"Logging in as {username}...")
     
     # Create session for cookie management
     session = requests.Session()
@@ -108,21 +150,25 @@ def login(base_url):
     import urllib3
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     
-    # Hash password as required by Reservia API
-    hashed_password = hashlib.sha256(PASSWORD.encode()).hexdigest()
+    # Check if server is in no-auth mode
+    no_auth = check_no_auth_mode(base_url)
     
-    # Prepare login payload
-    login_data = {
-        "name": USERNAME, 
-        "password": hashed_password
-    }
+    if no_auth:
+        print("🔓 Server running in no-auth mode")
+        # Prepare login payload without password
+        login_data = {"name": username}
+    else:
+        print("🔒 Server requires authentication")
+        print("❌ This script only supports no-auth mode")
+        print("Please run the server with --no-auth flag")
+        sys.exit(1)
     
     # Attempt login
     response = session.post(f"{base_url}/session/login", json=login_data)
     
     if response.status_code != 200:
         print(f"❌ Login failed with status code: {response.status_code}")
-        print("Check username/password and server availability")
+        print("Check server availability and no-auth mode")
         sys.exit(1)
     
     print("✅ Login successful")
