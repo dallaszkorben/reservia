@@ -6,13 +6,18 @@
  * and adds them as users to the resource card
  */
 function loadUsersForResource(resourceCard) {
-    // Fetch active reservations for this resource
+    // Fetch all active reservations and filter for this resource
     $.ajax({
-        url: `/reservation/active?resource_id=${resourceCard.id}`,
+        url: '/reservation/active/all_users',
         method: 'GET',
         success: function(reservationResponse) {
+            // Filter reservations for this specific resource
+            const resourceReservations = reservationResponse.reservations.filter(
+                reservation => reservation.resource_id === resourceCard.id
+            );
+            
             // Add each reservation as a user to the resource card
-            reservationResponse.reservations.forEach(reservation => {
+            resourceReservations.forEach(reservation => {
                 resourceCard.addUser(
                     reservation.user_name,
                     reservation.user_id,
@@ -70,11 +75,16 @@ function refreshResourcesFromServer() {
                 } else {
                     // Case 2: Existing resource - check if users need updating
                     $.ajax({
-                        url: `/reservation/active?resource_id=${resource.id}`,
+                        url: '/reservation/active/all_users',
                         method: 'GET',
                         success: function(reservationResponse) {
+                            // Filter reservations for this specific resource
+                            const resourceReservations = reservationResponse.reservations.filter(
+                                reservation => reservation.resource_id === resource.id
+                            );
+                            
                             // Step 4: Compare current users with server users
-                            if (!usersEqual(resourceCard.users, reservationResponse.reservations)) {
+                            if (!usersEqual(resourceCard.users, resourceReservations)) {
                                 // Case 2.1: Users are different - clear and reload
                                 console.log(`Updating users for resource: ${resource.name} (${resource.id})`);
                                 resourceCard.users = [];                    // Clear user data
@@ -82,7 +92,7 @@ function refreshResourcesFromServer() {
                                 resourceCard.view?.updateBackgroundColor(); // Update color for empty list
 
                                 // Add updated users from server
-                                reservationResponse.reservations.forEach(reservation => {
+                                resourceReservations.forEach(reservation => {
                                     resourceCard.addUser(
                                         reservation.user_name,
                                         reservation.user_id,
