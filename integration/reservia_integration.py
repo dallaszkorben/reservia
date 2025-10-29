@@ -24,6 +24,7 @@ import subprocess
 import os
 import sys
 import hashlib
+import argparse
 
 # =============================================================================
 # CONFIGURATION
@@ -35,9 +36,46 @@ RESOURCE_ID = 1
 USERNAME = "user1"
 PASSWORD = "user1"
 
-# Timing configuration (in seconds)
-STATUS_CHECK_INTERVAL = 10    # How often to check reservation status while waiting
-KEEP_ALIVE_INTERVAL = 10      # How often to send keep-alive while script runs
+# Default values
+DEFAULT_SCRIPT = "mock_script.py"
+DEFAULT_INTERVAL = 10  # seconds
+
+def parse_arguments():
+    """
+    Parse command-line arguments.
+    
+    Returns:
+        argparse.Namespace: Parsed arguments
+    """
+    parser = argparse.ArgumentParser(
+        description="Reservia Integration Script - Reserve resource and execute script",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python3 reservia_integration.py                           # Use defaults
+  python3 reservia_integration.py --script my_script.py     # Python script
+  python3 reservia_integration.py --script xcalc            # System command
+  python3 reservia_integration.py --script /path/to/script  # Absolute path
+  python3 reservia_integration.py --script ./work.sh        # Relative path
+  python3 reservia_integration.py --script "sleep 30"       # Shell command
+  python3 reservia_integration.py --interval 5              # 5-second intervals
+        """
+    )
+    
+    parser.add_argument(
+        "--script", "-s",
+        default=DEFAULT_SCRIPT,
+        help=f"Script/command to execute (default: {DEFAULT_SCRIPT})"
+    )
+    
+    parser.add_argument(
+        "--interval", "-i",
+        type=int,
+        default=DEFAULT_INTERVAL,
+        help=f"Keep-alive interval in seconds (default: {DEFAULT_INTERVAL})"
+    )
+    
+    return parser.parse_args()
 
 # =============================================================================
 # AUTHENTICATION & SESSION MANAGEMENT
@@ -183,6 +221,48 @@ def send_release(session):
     
     print("✅ Resource released successfully")
 
+def cleanup_reservation(session):
+    """
+    Clean up reservation based on its current status.
+    Uses cancel for requested reservations, release for approved ones.
+    
+    Args:
+        session (requests.Session): Authenticated session
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    # Check current reservation status
+    status = check_reservation_status(session)
+    
+    if status == "requested":
+        print("Cancelling requested reservation...")
+        cancel_data = {"resource_id": RESOURCE_ID}
+        response = session.post(f"{RESERVIA_BASE_URL}/reservation/cancel", json=cancel_data)
+        
+        if response.status_code != 200:
+            print(f"❌ Cancel failed with status code: {response.status_code}")
+            return False
+        
+        print("✅ Reservation cancelled successfully")
+        return True
+        
+    elif status == "approved":
+        print("Releasing approved reservation...")
+        release_data = {"resource_id": RESOURCE_ID}
+        response = session.post(f"{RESERVIA_BASE_URL}/reservation/release", json=release_data)
+        
+        if response.status_code != 200:
+            print(f"❌ Release failed with status code: {response.status_code}")
+            return False
+        
+        print("✅ Reservation released successfully")
+        return True
+        
+    else:
+        print(f"❌ Cannot cleanup reservation with status: {status}")
+        return False
+
 # =============================================================================
 # PROCESS MANAGEMENT
 # =============================================================================
@@ -199,35 +279,56 @@ def is_process_running(process):
     """
     return process.poll() is None
 
-def execute_mock_script():
+def execute_mock_script(script_name):
     """
-    Start the mock script as a subprocess.
+    Start the specified script/command as a subprocess.
+    
+    Args:
+        script_name (str): Path to script/executable or command name
     
     Returns:
-        subprocess.Popen: Process object for monitoring
+        subprocess.Popen or None: Process object for monitoring, or None if failed
     """
-    script_path = os.path.join(os.path.dirname(__file__), "mock_script.py")
-    
-    if not os.path.exists(script_path):
-        print(f"❌ Mock script not found: {script_path}")
-        sys.exit(1)
-    
-    print("🚀 Starting mock script...")
-    process = subprocess.Popen([sys.executable, script_path])
-    print(f"📋 Mock script started with PID: {process.pid}")
-    
-    return process
+    try:
+        print(f"🚀 Starting: {script_name}")
+        
+        # Handle different types of executables
+        if script_name.endswith('.py'):
+            # Python script - use python interpreter
+            if os.path.isabs(script_name) or '/' in script_name:
+                # Absolute or relative path provided
+                script_path = script_name
+            else:
+                # Just filename - look in current directory
+                script_path = os.path.join(os.path.dirname(__file__), script_name)
+            
+            if not os.path.exists(script_path):
+                print(f"❌ Python script not found: {script_path}")
+                return None
+                
+            process = subprocess.Popen([sys.executable, script_path])
+        else:
+            # System command or executable
+            process = subprocess.Popen(script_name, shell=True)
+        
+        print(f"📋 Process started with PID: {process.pid}")
+        return process
+        
+    except Exception as e:
+        print(f"❌ Failed to start '{script_name}': {e}")
+        return None
 
 # =============================================================================
 # MAIN WORKFLOW
 # =============================================================================
 
-def wait_for_approval(session):
+def wait_for_approval(session, interval):
     """
     Wait for reservation approval, sending keep-alive messages as needed.
     
     Args:
         session (requests.Session): Authenticated session
+        interval (int): Check interval in seconds
     """
     print("⏳ Waiting for reservation approval...")
     
@@ -237,7 +338,7 @@ def wait_for_approval(session):
         if status == "requested":
             print("📋 Status: Requested - sending keep-alive...")
             send_keep_alive(session)
-            time.sleep(STATUS_CHECK_INTERVAL)
+            time.sleep(interval)
             
         elif status == "approved":
             print("✅ Reservation approved!")
@@ -251,13 +352,14 @@ def wait_for_approval(session):
             print(f"❌ Unknown reservation status: {status}")
             sys.exit(1)
 
-def monitor_script_execution(session, process):
+def monitor_script_execution(session, process, interval):
     """
     Monitor script execution while maintaining reservation with keep-alive messages.
     
     Args:
         session (requests.Session): Authenticated session
         process (subprocess.Popen): Running script process
+        interval (int): Keep-alive interval in seconds
     """
     print("🔄 Monitoring script execution...")
     
@@ -265,10 +367,10 @@ def monitor_script_execution(session, process):
         if is_process_running(process):
             # Script still running - send keep-alive to maintain reservation
             send_keep_alive(session)
-            time.sleep(KEEP_ALIVE_INTERVAL)
+            time.sleep(interval)
         else:
             # Script completed
-            print("✅ Mock script completed successfully")
+            print("✅ Script completed successfully")
             return
 
 def main():
@@ -276,13 +378,20 @@ def main():
     Main workflow orchestration.
     
     Implements the complete Reservia integration workflow:
-    1. Authentication
-    2. Reservation management
-    3. Script execution with monitoring
-    4. Resource cleanup
+    1. Parse command-line arguments
+    2. Authentication
+    3. Reservation management
+    4. Script execution with monitoring
+    5. Resource cleanup
     """
+    # Parse command-line arguments
+    args = parse_arguments()
+    
     print("=" * 60)
     print("🎯 RESERVIA INTEGRATION SCRIPT")
+    print("=" * 60)
+    print(f"📄 Script to execute: {args.script}")
+    print(f"⏱️  Keep-alive interval: {args.interval} seconds")
     print("=" * 60)
     
     try:
@@ -295,15 +404,22 @@ def main():
         if existing_status:
             print(f"📋 Found existing reservation with status: {existing_status}")
             if existing_status == "requested":
-                wait_for_approval(session)
+                wait_for_approval(session, args.interval)
         else:
             # No existing reservation - create new one
             reserve_resource(session)
-            wait_for_approval(session)
+            wait_for_approval(session, args.interval)
         
-        # Step 3: Execute mock script with monitoring
-        process = execute_mock_script()
-        monitor_script_execution(session, process)
+        # Step 3: Execute script with monitoring
+        process = execute_mock_script(args.script)
+        
+        if process is None:
+            # Script execution failed - cleanup the reservation
+            print("⚠️  Script execution failed, cleaning up reservation...")
+            cleanup_reservation(session)
+            sys.exit(1)
+        
+        monitor_script_execution(session, process, args.interval)
         
         # Step 4: Clean up - release the resource
         send_release(session)
