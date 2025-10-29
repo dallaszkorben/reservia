@@ -282,24 +282,28 @@ def test_db_get_users():
         assert admin_user is not None
 
         operation += 1
-        print(f"\n{operation}. Get users as admin (only default admin exists)")
+        print(f"\n{operation}. Get users as admin (default admin and super users exist)")
         success, users, error_code, error_msg = db.get_users()
         assert success and users is not None and error_code is None
-        assert len(users) == 1
-        assert users[0]['name'] == 'admin'
-        assert users[0]['email'] == 'admin@admin.se'
-        assert users[0]['role'] == 'admin'
-        assert 'id' in users[0]
+        assert len(users) == 2
+        user_names = [u['name'] for u in users]
+        assert 'admin' in user_names
+        assert 'super' in user_names
+        admin_user = next(u for u in users if u['name'] == 'admin')
+        assert admin_user['email'] == 'admin@admin.se'
+        assert admin_user['role'] == 'admin'
+        assert 'id' in admin_user
 
         operation += 1
         print(f"\n{operation}. Create additional users and test")
         _, user1, _, _ = db.create_user("John Doe", "john@example.com", hash_password("pass123"))
         _, user2, _, _ = db.create_user("Jane Smith", "jane@example.com", hash_password("pass456"))
         success, users, error_code, error_msg = db.get_users()
-        assert success and len(users) == 3
+        assert success and len(users) == 4
 
         user_names = [u['name'] for u in users]
         assert 'admin' in user_names
+        assert 'super' in user_names
         assert 'John Doe' in user_names
         assert 'Jane Smith' in user_names
 
@@ -475,7 +479,7 @@ def test_api_info_users():
         data = json.loads(response.data)
         assert data['message'] == 'Users retrieved successfully'
         assert 'users' in data
-        assert data['count'] == 1
+        assert data['count'] == 2
 
         operation += 1
         print(f"\n{operation}. Create additional users and test")
@@ -485,10 +489,11 @@ def test_api_info_users():
         response = client.get('/info/users')
         assert response.status_code == 200
         data = json.loads(response.data)
-        assert data['count'] == 3
+        assert data['count'] == 4
         
         user_names = [u['name'] for u in data['users']]
         assert 'admin' in user_names
+        assert 'super' in user_names
         assert 'John Doe' in user_names
         assert 'Jane Smith' in user_names
 
