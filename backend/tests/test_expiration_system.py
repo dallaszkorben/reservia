@@ -28,7 +28,7 @@ class TestExpirationSystem(unittest.TestCase):
         self.config_dict = {
             'app_name': 'reservia_expiration_test',
             'version': '1.0.0',
-        'data_dir': os.path.join(HOME, TEST_DIR_NAME),
+
             'data_dir': os.path.join(str(Path.home()), '.reservia_expiration_test'),
             'log': {'log_name': 'test.log', 'level': 'INFO', 'backupCount': 1},
             'database': {'name': 'test_expiration.db'}
