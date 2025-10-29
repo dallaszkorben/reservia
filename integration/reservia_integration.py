@@ -31,7 +31,6 @@ import argparse
 # =============================================================================
 
 # Reservia server configuration
-RESERVIA_BASE_URL = "https://reservia.bss.seli.gic.ericsson.se"
 RESOURCE_ID = 1
 USERNAME = "user1"
 PASSWORD = "user1"
@@ -52,14 +51,17 @@ def parse_arguments():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python3 reservia_integration.py                           # Use defaults
-  python3 reservia_integration.py --script my_script.py     # Python script
-  python3 reservia_integration.py --script xcalc            # System command
-  python3 reservia_integration.py --script /path/to/script  # Absolute path
-  python3 reservia_integration.py --script ./work.sh        # Relative path
-  python3 reservia_integration.py --script "sleep 30"       # Shell command
-  python3 reservia_integration.py --interval 5              # 5-second intervals
+  python3 reservia_integration.py                           # Use defaults (localhost:5000)
+  python3 reservia_integration.py --url https://reservia.example.com
+  python3 reservia_integration.py --script xcalc            # Custom script, default URL
+  python3 reservia_integration.py --url https://reservia.example.com --script ./work.sh --interval 15
         """
+    )
+    
+    parser.add_argument(
+        "--url", "-u",
+        default="http://localhost:5000",
+        help="Reservia server URL (default: http://localhost:5000)"
     )
     
     parser.add_argument(
@@ -81,13 +83,12 @@ Examples:
 # AUTHENTICATION & SESSION MANAGEMENT
 # =============================================================================
 
-def login():
+def login(base_url):
     """
     Authenticate with Reservia server and establish session.
     
-    The Reservia API requires SHA-256 hashed passwords and uses session cookies
-    for subsequent authentication. The requests.Session() automatically handles
-    cookie management.
+    Args:
+        base_url (str): Reservia server base URL
     
     Returns:
         requests.Session: Authenticated session object for API calls
@@ -117,7 +118,7 @@ def login():
     }
     
     # Attempt login
-    response = session.post(f"{RESERVIA_BASE_URL}/session/login", json=login_data)
+    response = session.post(f"{base_url}/session/login", json=login_data)
     
     if response.status_code != 200:
         print(f"❌ Login failed with status code: {response.status_code}")
@@ -131,12 +132,13 @@ def login():
 # RESERVATION MANAGEMENT
 # =============================================================================
 
-def reserve_resource(session):
+def reserve_resource(session, base_url):
     """
     Request a new resource reservation.
     
     Args:
         session (requests.Session): Authenticated session
+        base_url (str): Reservia server base URL
         
     Exits:
         System exit on reservation failure
@@ -144,7 +146,7 @@ def reserve_resource(session):
     print(f"Requesting reservation for resource {RESOURCE_ID}...")
     
     reserve_data = {"resource_id": RESOURCE_ID}
-    response = session.post(f"{RESERVIA_BASE_URL}/reservation/request", json=reserve_data)
+    response = session.post(f"{base_url}/reservation/request", json=reserve_data)
     
     # Accept both 200 (OK) and 201 (Created) as success
     if response.status_code not in [200, 201]:
@@ -155,12 +157,13 @@ def reserve_resource(session):
     
     print(f"✅ Resource {RESOURCE_ID} reservation requested")
 
-def check_reservation_status(session):
+def check_reservation_status(session, base_url):
     """
     Check the current status of user's reservation for the target resource.
     
     Args:
         session (requests.Session): Authenticated session
+        base_url (str): Reservia server base URL
         
     Returns:
         str or None: Reservation status ("requested", "approved") or None if no reservation
@@ -168,7 +171,7 @@ def check_reservation_status(session):
     Exits:
         System exit on API failure
     """
-    response = session.get(f"{RESERVIA_BASE_URL}/reservation/active?resource_id={RESOURCE_ID}")
+    response = session.get(f"{base_url}/reservation/active?resource_id={RESOURCE_ID}")
     
     if response.status_code != 200:
         print(f"❌ Status check failed with status code: {response.status_code}")
@@ -185,7 +188,7 @@ def check_reservation_status(session):
     
     return None  # No reservation found
 
-def send_keep_alive(session):
+def send_keep_alive(session, base_url):
     """
     Send keep-alive message to extend reservation validity.
     
@@ -194,12 +197,13 @@ def send_keep_alive(session):
     
     Args:
         session (requests.Session): Authenticated session
+        base_url (str): Reservia server base URL
         
     Exits:
         System exit on API failure
     """
     keep_alive_data = {"resource_id": RESOURCE_ID}
-    response = session.post(f"{RESERVIA_BASE_URL}/reservation/keep_alive", json=keep_alive_data)
+    response = session.post(f"{base_url}/reservation/keep_alive", json=keep_alive_data)
     
     if response.status_code != 200:
         print(f"❌ Keep alive failed with status code: {response.status_code}")
@@ -207,12 +211,13 @@ def send_keep_alive(session):
     
     print("⏰ Keep alive sent")
 
-def send_release(session):
+def send_release(session, base_url):
     """
     Release the approved reservation, making the resource available to others.
     
     Args:
         session (requests.Session): Authenticated session
+        base_url (str): Reservia server base URL
         
     Exits:
         System exit on API failure
@@ -220,7 +225,7 @@ def send_release(session):
     print("Releasing resource...")
     
     release_data = {"resource_id": RESOURCE_ID}
-    response = session.post(f"{RESERVIA_BASE_URL}/reservation/release", json=release_data)
+    response = session.post(f"{base_url}/reservation/release", json=release_data)
     
     if response.status_code != 200:
         print(f"❌ Release failed with status code: {response.status_code}")
@@ -228,24 +233,25 @@ def send_release(session):
     
     print("✅ Resource released successfully")
 
-def cleanup_reservation(session):
+def cleanup_reservation(session, base_url):
     """
     Clean up reservation based on its current status.
     Uses cancel for requested reservations, release for approved ones.
     
     Args:
         session (requests.Session): Authenticated session
+        base_url (str): Reservia server base URL
         
     Returns:
         bool: True if successful, False otherwise
     """
     # Check current reservation status
-    status = check_reservation_status(session)
+    status = check_reservation_status(session, base_url)
     
     if status == "requested":
         print("Cancelling requested reservation...")
         cancel_data = {"resource_id": RESOURCE_ID}
-        response = session.post(f"{RESERVIA_BASE_URL}/reservation/cancel", json=cancel_data)
+        response = session.post(f"{base_url}/reservation/cancel", json=cancel_data)
         
         if response.status_code != 200:
             print(f"❌ Cancel failed with status code: {response.status_code}")
@@ -257,7 +263,7 @@ def cleanup_reservation(session):
     elif status == "approved":
         print("Releasing approved reservation...")
         release_data = {"resource_id": RESOURCE_ID}
-        response = session.post(f"{RESERVIA_BASE_URL}/reservation/release", json=release_data)
+        response = session.post(f"{base_url}/reservation/release", json=release_data)
         
         if response.status_code != 200:
             print(f"❌ Release failed with status code: {response.status_code}")
@@ -329,22 +335,23 @@ def execute_mock_script(script_name):
 # MAIN WORKFLOW
 # =============================================================================
 
-def wait_for_approval(session, interval):
+def wait_for_approval(session, base_url, interval):
     """
     Wait for reservation approval, sending keep-alive messages as needed.
     
     Args:
         session (requests.Session): Authenticated session
+        base_url (str): Reservia server base URL
         interval (int): Check interval in seconds
     """
     print("⏳ Waiting for reservation approval...")
     
     while True:
-        status = check_reservation_status(session)
+        status = check_reservation_status(session, base_url)
         
         if status == "requested":
             print("📋 Status: Requested - sending keep-alive...")
-            send_keep_alive(session)
+            send_keep_alive(session, base_url)
             time.sleep(interval)
             
         elif status == "approved":
@@ -359,12 +366,13 @@ def wait_for_approval(session, interval):
             print(f"❌ Unknown reservation status: {status}")
             sys.exit(1)
 
-def monitor_script_execution(session, process, interval):
+def monitor_script_execution(session, base_url, process, interval):
     """
     Monitor script execution while maintaining reservation with keep-alive messages.
     
     Args:
         session (requests.Session): Authenticated session
+        base_url (str): Reservia server base URL
         process (subprocess.Popen): Running script process
         interval (int): Keep-alive interval in seconds
     """
@@ -373,7 +381,7 @@ def monitor_script_execution(session, process, interval):
     while True:
         if is_process_running(process):
             # Script still running - send keep-alive to maintain reservation
-            send_keep_alive(session)
+            send_keep_alive(session, base_url)
             time.sleep(interval)
         else:
             # Script completed
@@ -397,25 +405,26 @@ def main():
     print("=" * 60)
     print("🎯 RESERVIA INTEGRATION SCRIPT")
     print("=" * 60)
+    print(f"🌐 Server URL: {args.url}")
     print(f"📄 Script to execute: {args.script}")
     print(f"⏱️  Keep-alive interval: {args.interval} seconds")
     print("=" * 60)
     
     try:
         # Step 1: Authenticate with Reservia
-        session = login()
+        session = login(args.url)
         
         # Step 2: Check for existing reservation or create new one
-        existing_status = check_reservation_status(session)
+        existing_status = check_reservation_status(session, args.url)
         
         if existing_status:
             print(f"📋 Found existing reservation with status: {existing_status}")
             if existing_status == "requested":
-                wait_for_approval(session, args.interval)
+                wait_for_approval(session, args.url, args.interval)
         else:
             # No existing reservation - create new one
-            reserve_resource(session)
-            wait_for_approval(session, args.interval)
+            reserve_resource(session, args.url)
+            wait_for_approval(session, args.url, args.interval)
         
         # Step 3: Execute script with monitoring
         process = execute_mock_script(args.script)
@@ -423,13 +432,13 @@ def main():
         if process is None:
             # Script execution failed - cleanup the reservation
             print("⚠️  Script execution failed, cleaning up reservation...")
-            cleanup_reservation(session)
+            cleanup_reservation(session, args.url)
             sys.exit(1)
         
-        monitor_script_execution(session, process, args.interval)
+        monitor_script_execution(session, args.url, process, args.interval)
         
         # Step 4: Clean up - release the resource
-        send_release(session)
+        send_release(session, args.url)
         
         print("=" * 60)
         print("🎉 WORKFLOW COMPLETED SUCCESSFULLY")

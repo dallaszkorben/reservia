@@ -25,7 +25,7 @@ pip install requests
 
 ### Basic Usage
 ```bash
-# Use defaults (mock_script.py, 10-second intervals)
+# Use defaults (localhost:5000, mock_script.py, 10-second intervals)
 python3 reservia_integration.py
 
 # Show help and all options
@@ -33,9 +33,8 @@ python3 reservia_integration.py --help
 ```
 
 ### Configuration
-Edit the configuration section in `reservia_integration.py` for server settings:
+The script uses command-line parameters instead of hardcoded values. You can optionally edit the script for default credentials:
 ```python
-RESERVIA_BASE_URL = "https://reservia.bss.seli.gic.ericsson.se"
 RESOURCE_ID = 1
 USERNAME = "your_username"
 PASSWORD = "your_password"
@@ -45,11 +44,24 @@ PASSWORD = "your_password"
 
 | Option | Short | Description | Default |
 |--------|-------|-------------|---------|
+| `--url` | `-u` | Reservia server URL | `http://localhost:5000` |
 | `--script` | `-s` | Script/command to execute | `mock_script.py` |
 | `--interval` | `-i` | Keep-alive interval (seconds) | `10` |
 | `--help` | `-h` | Show help message | - |
 
 ## 📋 Usage Examples
+
+### Basic Usage
+```bash
+# Use all defaults (localhost:5000)
+python3 reservia_integration.py
+
+# Custom script with default URL
+python3 reservia_integration.py --script xcalc
+
+# Custom URL with defaults
+python3 reservia_integration.py --url https://reservia.example.com
+```
 
 ### Python Scripts
 ```bash
@@ -116,6 +128,7 @@ python3 reservia_integration.py --script "my_long_job.sh" --interval 15
 ============================================================
 🎯 RESERVIA INTEGRATION SCRIPT
 ============================================================
+🌐 Server URL: http://localhost:5000
 📄 Script to execute: xcalc
 ⏱️  Keep-alive interval: 10 seconds
 ============================================================
@@ -204,7 +217,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 - **Reservia Repository**: https://github.com/dallaszkorben/reservia
 - **API Documentation**: See main repository README
-- **Server Status**: `https://reservia.bss.seli.gic.ericsson.se/info/is_alive`
+- **Server Health Check**: Check your server's `/info/is_alive` endpoint
 
 ## 🤝 Contributing
 
